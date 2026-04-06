@@ -1,0 +1,84 @@
+import { z } from "zod";
+
+// Component score data for a single month
+export const componentScoreSchema = z.object({
+  name: z.string(),
+  score: z.number(),
+  weight: z.number(),
+  contribution: z.number(),
+});
+
+export type ComponentScore = z.infer<typeof componentScoreSchema>;
+
+// Single month of backtest data
+export const monthlyDataSchema = z.object({
+  date: z.string(),
+  goldClose: z.number(),
+  goldReturn: z.number(),
+  ryScore: z.number(),
+  usdScore: z.number(),
+  gprScore: z.number(),
+  cbScore: z.number(),
+  riskoffScore: z.number(),
+  inflationScore: z.number(),
+  momentumScore: z.number(),
+  goldSafeHavenScore: z.number(),
+  scoreBucket: z.string(),
+  // Raw underlying data
+  realYield: z.number(),
+  vix: z.number(),
+  breakeven: z.number(),
+  hySpread: z.number(),
+  usdBroad: z.number(),
+  gpr: z.number(),
+});
+
+export type MonthlyData = z.infer<typeof monthlyDataSchema>;
+
+// API response for /api/score
+export const scoreResponseSchema = z.object({
+  current: monthlyDataSchema,
+  components: z.array(componentScoreSchema),
+  compositeScore: z.number(),
+  regime: z.string(),
+  lastUpdated: z.string(),
+  // Live data metadata
+  lastFetched: z.string().optional(),
+  nextRefresh: z.string().optional(),
+  dataStatus: z.enum(["live", "stale", "error", "historical"]).optional(),
+  sources: z.object({
+    fred: z.boolean(),
+    yahoo: z.boolean(),
+    gpr: z.boolean(),
+  }).optional(),
+});
+
+export type ScoreResponse = z.infer<typeof scoreResponseSchema>;
+
+// API response for /api/history
+export const historyResponseSchema = z.object({
+  data: z.array(monthlyDataSchema),
+});
+
+export type HistoryResponse = z.infer<typeof historyResponseSchema>;
+
+// Weight presets
+export const ORIGINAL_WEIGHTS = {
+  realYield: 0.25,
+  usd: 0.20,
+  gpr: 0.15,
+  cb: 0.10,
+  riskoff: 0.15,
+  inflation: 0.10,
+  momentum: 0.05,
+} as const;
+
+export const OPTIMIZED_WEIGHTS = {
+  realYield: 0.15,
+  usd: 0.12,
+  gpr: 0.15,
+  cb: 0.20,
+  riskoff: 0.15,
+  inflation: 0.08,
+  momentum: 0.15,
+} as const;
