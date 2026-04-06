@@ -22,10 +22,10 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 function AppRouter() {
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
+      <Route path="/" component={ChartPage} />
       <Route path="/signal" component={SignalPage} />
-      <Route path="/chart" component={ChartPage} />
-      <Route component={NotFound} />
+      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/chart" component={ChartPage} />      <Route component={NotFound} />
     </Switch>
   );
 }
