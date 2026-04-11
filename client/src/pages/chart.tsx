@@ -109,6 +109,7 @@ export default function ChartPage() {
 
   const price = signal?.gold ?? chartData.candles[chartData.candles.length - 1]?.close ?? 0;
   const sc = signal?.score ?? 50;
+  const safeFixed = (v: any, d = 2) => (v != null && !isNaN(v) ? Number(v).toFixed(d) : "—");
   const sColor = scoreColor(sc);
 
   // Score gauge arc
@@ -125,9 +126,9 @@ export default function ChartPage() {
           <span style={{ color: "#4B5563" }}>|</span>
           <span style={{ color: "#E5E7EB", fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD</span>
           <span style={{ color: "#6B7280", fontSize: 11 }}>1H</span>
-          <span style={{ color: "#E5E7EB", fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>${price.toFixed(2)}</span>
+          <span style={{ color: "#E5E7EB", fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>${safeFixed(price)}</span>
           <span style={{ color: sColor, fontSize: 11, fontWeight: 700, fontFamily: "monospace", background: `${sColor}12`, border: `1px solid ${sColor}25`, padding: "3px 10px", borderRadius: 4 }}>
-            Score {sc.toFixed(0)} — {scoreLabel(sc)}
+            Score {safeFixed(sc, 0)} — {scoreLabel(sc)}
           </span>
         </div>
       </div>
@@ -148,11 +149,11 @@ export default function ChartPage() {
                   {sc >= 50 ? "↑" : "↓"}
                 </div>
                 <div style={{ fontSize: 36, fontWeight: 700, fontFamily: "monospace", color: sColor, marginTop: 4 }}>
-                  {sc.toFixed(0)}%
+                  {safeFixed(sc, 0)}%
                 </div>
                 <div style={{ fontSize: 11, color: "#9CA3AF", marginTop: 4 }}>Gold Safe Haven Score</div>
-                <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "monospace", color: "#E5E7EB", marginTop: 8 }}>${signal.gold.toFixed(2)}</div>
-                <div style={{ fontSize: 10, color: "#4B5563", marginTop: 2 }}>XAU/USD Spot · {signal.meta.bullishCount}/5 factors favour gold</div>
+                <div style={{ fontSize: 20, fontWeight: 700, fontFamily: "monospace", color: "#E5E7EB", marginTop: 8 }}>${safeFixed(signal?.gold)}</div>
+                <div style={{ fontSize: 10, color: "#4B5563", marginTop: 2 }}>XAU/USD Spot · {signal.meta?.bullishCount ?? 0}/5 factors favour gold</div>
               </div>
 
               {/* Divider */}
@@ -166,19 +167,19 @@ export default function ChartPage() {
               {/* Analysis context */}
               <div style={{ background: "#0F1419", borderRadius: 6, padding: "10px 12px", border: "1px solid #1C2530", display: "flex", flexDirection: "column", gap: 6 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span style={{ color: "#E5E7EB", fontSize: 12, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD ${signal.gold.toFixed(2)}</span>
+                  <span style={{ color: "#E5E7EB", fontSize: 12, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD ${safeFixed(signal?.gold)}</span>
                   <span style={{ color: "#4B5563", fontSize: 9, fontFamily: "monospace" }}>
-                    {new Date(signal.meta.lastFetched).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
                     {" "}
-                    {new Date(signal.meta.lastFetched).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}
                   </span>
                 </div>
                 <div style={{ color: "#9CA3AF", fontSize: 10, lineHeight: 1.5 }}>
                   {sc >= 65
-                    ? `At $${signal.gold.toFixed(0)}, the macro environment favours gold. ${signal.meta.bullishCount} of 5 factors are supportive — primarily driven by ${signal.reasons.filter(r => r.impact === "bullish").sort((a, b) => ((b as any).score ?? 0) - ((a as any).score ?? 0)).slice(0, 2).map(r => r.factor.toLowerCase()).join(" and ")}. The score of ${sc.toFixed(0)}% reflects elevated safe-haven demand conditions.`
+                    ? `At $${safeFixed(signal?.gold, 0)}, the macro environment favours gold. ${signal.meta?.bullishCount ?? 0} of 5 factors are supportive — primarily driven by ${(signal.reasons ?? []).filter(r => r.impact === "bullish").sort((a, b) => ((b as any).score ?? 0) - ((a as any).score ?? 0)).slice(0, 2).map(r => r.factor.toLowerCase()).join(" and ")}. The score of ${safeFixed(sc, 0)}% reflects elevated safe-haven demand conditions.`
                     : sc >= 50
-                    ? `At $${signal.gold.toFixed(0)}, conditions are mixed. ${signal.meta.bullishCount} of 5 factors lean supportive but conviction is moderate at ${sc.toFixed(0)}%. No dominant macro theme is driving gold in either direction.`
-                    : `At $${signal.gold.toFixed(0)}, the macro backdrop is unfavourable for gold. ${signal.meta.bearishCount} of 5 factors are working against it. The score of ${sc.toFixed(0)}% reflects weakening safe-haven demand.`
+                    ? `At $${safeFixed(signal?.gold, 0)}, conditions are mixed. ${signal.meta?.bullishCount ?? 0} of 5 factors lean supportive but conviction is moderate at ${safeFixed(sc, 0)}%. No dominant macro theme is driving gold in either direction.`
+                    : `At $${safeFixed(signal?.gold, 0)}, the macro backdrop is unfavourable for gold. ${signal.meta?.bearishCount ?? 0} of 5 factors are working against it. The score of ${safeFixed(sc, 0)}% reflects weakening safe-haven demand.`
                   }
                 </div>
               </div>
@@ -244,10 +245,10 @@ export default function ChartPage() {
               {/* Basis */}
               {signal.basis && (
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 9, color: "#4B5563", padding: "0 2px" }}>
-                  <span>Spot: ${signal.basis.spot?.toFixed(2)}</span>
-                  <span>Futures: ${signal.basis.futures?.toFixed(2)}</span>
-                  <span style={{ color: signal.basis.warning ? "#ef4444" : "#4B5563" }}>
-                    Basis: ${signal.basis.premium?.toFixed(2)}{signal.basis.warning ? " ⚠" : ""}
+                  <span>Spot: ${safeFixed(signal.basis?.spot)}</span>
+                  <span>Futures: ${safeFixed(signal.basis?.futures)}</span>
+                  <span style={{ color: signal.basis?.warning ? "#ef4444" : "#4B5563" }}>
+                    Basis: ${safeFixed(signal.basis?.premium)}{signal.basis?.warning ? " ⚠" : ""}
                   </span>
                 </div>
               )}
