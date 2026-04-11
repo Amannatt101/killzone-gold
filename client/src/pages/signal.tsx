@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Copy, Check, RefreshCw, TrendingUp, TrendingDown, Minus, Clock, Target, Shield, ArrowRight, Zap, ChevronRight } from "lucide-react";
+import bakedSignal from "@/data/signal-data.json";
 
 interface Reason {
   factor: string;
@@ -46,11 +47,13 @@ export default function SignalPage() {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
 
-  const { data, isLoading, refetch, isFetching } = useQuery<SignalData>({
+  const { data: liveData, isLoading, refetch, isFetching } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
     refetchInterval: 30 * 60 * 1000,
     staleTime: 60 * 1000,
+    retry: false,
   });
+  const data: SignalData = (liveData ?? bakedSignal) as SignalData;
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -64,7 +67,7 @@ export default function SignalPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  if (isLoading || !data) {
+  if (isLoading && !data) {
     return (
       <div className="min-h-screen bg-[#0F1419] flex items-center justify-center">
         <div className="animate-pulse text-[hsl(210_8%_45%)] font-mono text-sm">Loading signal...</div>

@@ -23,9 +23,10 @@ function AppRouter() {
   return (
     <Switch>
       <Route path="/" component={ChartPage} />
-      <Route path="/signal" component={SignalPage} />
       <Route path="/dashboard" component={Dashboard} />
-      <Route path="/chart" component={ChartPage} />      <Route component={NotFound} />
+      <Route path="/signal" component={SignalPage} />
+      <Route path="/chart" component={ChartPage} />
+      <Route component={NotFound} />
     </Switch>
   );
 }

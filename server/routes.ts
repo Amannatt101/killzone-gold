@@ -508,6 +508,7 @@ export async function registerRoutes(
       // --- 5 Key Reasons (data-driven) ---
       interface Reason {
         factor: string;
+        score: number; // 0-100 component score
         status: string;
         impact: "bullish" | "bearish" | "neutral";
         detail: string;
@@ -520,6 +521,7 @@ export async function registerRoutes(
       const reasons: Reason[] = [
         {
           factor: "USD Strength",
+          score: Math.round(live.usdScore),
           status: live.usdScore <= 30 ? "Dollar Strong" : live.usdScore >= 70 ? "Dollar Weak" : "Dollar Mixed",
           impact: live.usdScore >= 60 ? "bullish" : live.usdScore <= 40 ? "bearish" : "neutral",
           detail: live.usdScore <= 30
@@ -531,6 +533,7 @@ export async function registerRoutes(
         },
         {
           factor: "Bond Yields",
+          score: Math.round(live.ryScore),
           status: live.ryScore >= 65 ? "Yields Falling" : live.ryScore <= 35 ? "Yields Rising" : "Yields Stable",
           impact: live.ryScore >= 60 ? "bullish" : live.ryScore <= 40 ? "bearish" : "neutral",
           detail: live.ryScore >= 65
@@ -542,6 +545,7 @@ export async function registerRoutes(
         },
         {
           factor: "Risk Sentiment",
+          score: Math.round(live.riskoffScore),
           status: live.riskoffScore >= 65 ? "Risk-Off" : live.riskoffScore <= 35 ? "Risk-On" : "Mixed",
           impact: live.riskoffScore >= 60 ? "bullish" : live.riskoffScore <= 40 ? "bearish" : "neutral",
           detail: live.riskoffScore >= 65
@@ -553,6 +557,7 @@ export async function registerRoutes(
         },
         {
           factor: "Geopolitical Tension",
+          score: Math.round(live.gprScore),
           status: live.gprScore >= 80 ? "Extreme" : live.gprScore >= 50 ? "Elevated" : "Low",
           impact: live.gprScore >= 60 ? "bullish" : live.gprScore <= 30 ? "bearish" : "neutral",
           detail: live.gprScore >= 80
@@ -564,6 +569,7 @@ export async function registerRoutes(
         },
         {
           factor: "Inflation & Momentum",
+          score: Math.round((live.inflationScore + live.momentumScore) / 2),
           status: live.inflationScore >= 65 && live.momentumScore >= 65 ? "Both Bullish" :
                   live.inflationScore >= 65 ? "Inflation Rising" :
                   live.momentumScore >= 65 ? "Trend Intact" : "Weakening",
