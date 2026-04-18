@@ -47,6 +47,7 @@ export type IntelligenceDashboardProps = {
     regimeChip: string;
     biasChip: string;
   };
+  topbarExtra?: ReactNode;
 };
 
 export function IntelligenceDashboard({
@@ -61,6 +62,7 @@ export function IntelligenceDashboard({
   narrative,
   positioning,
   topbar,
+  topbarExtra,
 }: IntelligenceDashboardProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS_V2);
@@ -206,6 +208,7 @@ export function IntelligenceDashboard({
                 {topbar.liveLine}
               </span>
             </div>
+            {topbarExtra}
           </div>
         </div>
 

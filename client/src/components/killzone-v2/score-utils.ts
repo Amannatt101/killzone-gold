@@ -16,7 +16,7 @@ export function formatUtcShort(iso: string): string {
       minute: "2-digit",
       hour12: false,
       timeZone: "UTC",
-    }) + " UTC";
+    }) + " GMT";
   } catch {
     return "—";
   }

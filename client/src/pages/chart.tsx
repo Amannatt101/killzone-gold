@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createChart, ColorType, CandlestickSeries, LineSeries, AreaSeries } from "lightweight-charts";
 import chartData from "@/data/chart-data.json";
 import bakedSignal from "@/data/signal-data.json";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 interface SignalData {
   gold: number;
@@ -131,6 +132,7 @@ export default function ChartPage() {
             Score {safeFixed(sc, 0)} — {scoreLabel(sc)}
           </span>
         </div>
+        <LogoutButton className="inline-flex items-center gap-1 rounded border border-[#1C2530] bg-[#0F1419] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[#9CA3AF] hover:bg-[#1C2530]" />
       </div>
 
       {/* Main: Chart + Panel */}
@@ -169,9 +171,9 @@ export default function ChartPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: "#E5E7EB", fontSize: 12, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD ${safeFixed(signal?.gold)}</span>
                   <span style={{ color: "#4B5563", fontSize: 9, fontFamily: "monospace" }}>
-                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
                     {" "}
-                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false })}
+                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })} GMT
                   </span>
                 </div>
                 <div style={{ color: "#9CA3AF", fontSize: 10, lineHeight: 1.5 }}>

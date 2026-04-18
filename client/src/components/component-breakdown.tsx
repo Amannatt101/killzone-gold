@@ -91,7 +91,7 @@ export function ComponentBreakdown({
 
 function computeTotal(
   current: ScoreResponse["current"],
-  weights: typeof ORIGINAL_WEIGHTS
+  weights: typeof ORIGINAL_WEIGHTS | typeof OPTIMIZED_WEIGHTS,
 ): number {
   return (
     current.ryScore * weights.realYield +

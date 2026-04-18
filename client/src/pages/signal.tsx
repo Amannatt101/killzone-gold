@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { Copy, Check, RefreshCw, TrendingUp, TrendingDown, Minus, Clock, Target, Shield, ArrowRight, Zap, ChevronRight } from "lucide-react";
 import bakedSignal from "@/data/signal-data.json";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 interface Reason {
   factor: string;
@@ -105,6 +106,7 @@ export default function SignalPage() {
           >
             <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
           </button>
+          <LogoutButton className="inline-flex items-center gap-1 rounded-md border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_12%)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[hsl(210_8%_55%)] hover:bg-[hsl(210_15%_16%)]" />
         </div>
       </header>
 

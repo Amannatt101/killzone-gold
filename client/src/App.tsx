@@ -9,6 +9,8 @@ import SignalPage from "@/pages/signal";
 import ChartPage from "@/pages/chart";
 import IntelligenceDashboardPage from "@/pages/intelligence-dashboard";
 import NotFound from "@/pages/not-found";
+import LoginPage from "@/pages/login";
+import { AuthGate } from "@/components/auth/AuthGate";
 import { useEffect } from "react";
 
 function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -23,6 +25,7 @@ function ThemeProvider({ children }: { children: React.ReactNode }) {
 function AppRouter() {
   return (
     <Switch>
+      <Route path="/login" component={LoginPage} />
       <Route path="/" component={IntelligenceDashboardPage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/signal" component={SignalPage} />
@@ -39,7 +42,9 @@ function App() {
         <ThemeProvider>
           <Toaster />
           <Router hook={useHashLocation}>
-            <AppRouter />
+            <AuthGate>
+              <AppRouter />
+            </AuthGate>
           </Router>
         </ThemeProvider>
       </TooltipProvider>

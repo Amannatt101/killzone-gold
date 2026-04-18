@@ -265,7 +265,8 @@ function LiveTimestamp({ lastFetched, dataStatus }: { lastFetched: string; dataS
     minute: "2-digit",
     second: "2-digit",
     hour12: false,
-  });
+    timeZone: "UTC",
+  }) + " GMT";
 
   const isLive = dataStatus === "live";
 

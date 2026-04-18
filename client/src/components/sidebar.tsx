@@ -1,5 +1,6 @@
 import { KillzoneLogo } from "@/pages/dashboard";
 import { Gauge, BarChart3, Clock, Info, X, ScrollText, FileSearch, Zap, BarChart2 } from "lucide-react";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 
 const navItems = [
   { label: "Score", icon: Gauge, target: "score-section" },
@@ -78,7 +79,8 @@ export function DashboardSidebar({ onClose }: { onClose: () => void }) {
       </nav>
 
       {/* Bottom info */}
-      <div className="mt-auto pt-6 border-t border-[hsl(210_15%_14%)]">
+      <div className="mt-auto pt-6 border-t border-[hsl(210_15%_14%)] space-y-3">
+        <LogoutButton className="w-full flex items-center justify-center gap-2 rounded-md border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_12%)] px-3 py-2 text-xs font-medium text-[hsl(210_8%_55%)] hover:bg-[hsl(210_15%_16%)] hover:text-[hsl(210_10%_85%)] transition-colors" />
         <div className="text-[10px] text-[hsl(210_8%_40%)] space-y-1">
           <p>Gold Safe Haven Score</p>
           <p>7-Component Weighted Model</p>

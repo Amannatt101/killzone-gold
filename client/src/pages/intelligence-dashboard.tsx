@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, type ReactNode } from "react";
 import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDashboard";
+import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
 import { scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
@@ -186,7 +187,7 @@ export default function IntelligenceDashboardPage() {
         minute: "2-digit",
         hour12: false,
         timeZone: "UTC",
-      }) + " UTC";
+      }) + " GMT";
 
     return {
       updatedTs,
@@ -302,7 +303,7 @@ export default function IntelligenceDashboardPage() {
 
   const topbar = useMemo(() => {
     const priceDisplay = `$${safeFixed(signal.gold)}`;
-    const liveLine = `LIVE · ${new Date(signal.meta.lastFetched).toISOString().slice(11, 19)} UTC`;
+    const liveLine = `LIVE · ${new Date(signal.meta.lastFetched).toISOString().slice(11, 19)} GMT`;
     const entries = scoreLogApi?.entries;
     let chgDisplay = "—";
     let chgClass: "bull" | "bear" = "bear";
@@ -340,6 +341,7 @@ export default function IntelligenceDashboardPage() {
       narrative={narrative}
       positioning={positioning}
       topbar={topbar}
+      topbarExtra={<LogoutButton />}
     />
   );
 }

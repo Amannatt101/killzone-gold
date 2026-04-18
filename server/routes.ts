@@ -11,6 +11,12 @@ import {
   startAutoRefresh,
   type LiveScoreData,
 } from "./live-data.js";
+import {
+  issueDirectLoginIfAllowed,
+  requireAllowedUser,
+  sendMagicLinkIfAllowed,
+  validateBearerAndAllowlist,
+} from "./auth.js";
 
 // Resolve data directory - works both in dev (tsx) and prod (esbuild bundle)
 function getDataDir(): string {
@@ -118,6 +124,51 @@ export async function registerRoutes(
 ): Promise<Server> {
   // Start live data auto-refresh on server boot
   startAutoRefresh();
+
+  app.post("/api/auth/send-magic-link", async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email : "";
+    const result = await sendMagicLinkIfAllowed(email);
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.json({
+      message: "Check your email to access the platform.",
+    });
+  });
+
+  app.post("/api/auth/login", async (req, res) => {
+    const email = typeof req.body?.email === "string" ? req.body.email : "";
+    const result = await issueDirectLoginIfAllowed(email);
+    if (!result.ok) {
+      return res.status(result.status).json({ message: result.message });
+    }
+    return res.json({
+      token: result.token,
+      user: { email: result.email },
+      message: "Access granted.",
+    });
+  });
+
+  app.get("/api/auth/session", async (req, res) => {
+    const r = await validateBearerAndAllowlist(req.headers.authorization);
+    if (!r.ok) {
+      return res.status(r.status).json({
+        message:
+          r.status === 403
+            ? "Access restricted. Contact support to request access."
+            : "Unauthorized",
+      });
+    }
+    return res.json({ user: { email: r.email } });
+  });
+
+  app.use((req, res, next) => {
+    if (!req.path.startsWith("/api")) return next();
+    if (req.path === "/api/auth/send-magic-link" && req.method === "POST") return next();
+    if (req.path === "/api/auth/login" && req.method === "POST") return next();
+    if (req.path === "/api/auth/session" && req.method === "GET") return next();
+    return requireAllowedUser(req, res, next);
+  });
 
   app.get("/api/score", async (_req, res) => {
     try {
@@ -739,11 +790,18 @@ export async function registerRoutes(
         }
         if (currentZone) currentZone.score = score;
       });
-      // Close any open zone
-      if (currentZone) {
+      // Close any open zone (explicit type — TS does not narrow `currentZone` across forEach)
+      const closingZone = currentZone as {
+        type: string;
+        start: string;
+        score: number;
+      } | null;
+      if (closingZone) {
         const lastDate = data[data.length - 1].date;
-        if (currentZone.type === "buy") buyZones.push({ start: currentZone.start, end: lastDate, score: currentZone.score });
-        if (currentZone.type === "sell") sellZones.push({ start: currentZone.start, end: lastDate, score: currentZone.score });
+        if (closingZone.type === "buy")
+          buyZones.push({ start: closingZone.start, end: lastDate, score: closingZone.score });
+        if (closingZone.type === "sell")
+          sellZones.push({ start: closingZone.start, end: lastDate, score: closingZone.score });
       }
 
       // Current live signal
