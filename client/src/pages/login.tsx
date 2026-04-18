@@ -44,8 +44,8 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[hsl(210_22%_8%)] p-6">
-      <div className="w-full max-w-sm space-y-6 rounded-lg border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_10%)] p-8 shadow-xl">
+    <div className="min-h-screen flex items-center justify-center bg-[hsl(210_22%_8%)] p-4 sm:p-6">
+      <div className="w-full max-w-sm space-y-5 sm:space-y-6 rounded-lg border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_10%)] p-5 sm:p-8 shadow-xl">
         <div>
           <h1 className="text-lg font-semibold tracking-tight text-[hsl(210_10%_92%)]">
             Gold Intelligence
@@ -67,7 +67,7 @@ export default function LoginPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-md border border-[hsl(210_15%_20%)] bg-[hsl(210_22%_12%)] px-3 py-2 text-sm text-[hsl(210_10%_90%)] placeholder:text-[hsl(210_8%_40%)] focus:outline-none focus:ring-1 focus:ring-[#C49B30]"
+              className="w-full rounded-md border border-[hsl(210_15%_20%)] bg-[hsl(210_22%_12%)] px-3 py-2.5 text-sm text-[hsl(210_10%_90%)] placeholder:text-[hsl(210_8%_40%)] focus:outline-none focus:ring-1 focus:ring-[#C49B30]"
               placeholder="you@company.com"
               disabled={status === "loading"}
             />
@@ -75,7 +75,7 @@ export default function LoginPage() {
           <button
             type="submit"
             disabled={status === "loading"}
-            className="w-full rounded-md bg-[#C49B30] px-3 py-2.5 text-sm font-semibold text-[hsl(210_22%_8%)] hover:bg-[#d4ae4a] disabled:opacity-60 transition-colors"
+            className="w-full rounded-md bg-[#C49B30] px-3 py-3 text-sm font-semibold text-[hsl(210_22%_8%)] hover:bg-[#d4ae4a] disabled:opacity-60 transition-colors"
           >
             {status === "loading" ? "Verifying…" : "Verify Email & Grant Access"}
           </button>

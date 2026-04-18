@@ -190,9 +190,14 @@
 
 /* Dashboard full-viewport layout */
 html, body, #root {
+  min-height: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow-x: hidden;
   margin: 0;
+}
+
+body {
+  overflow-y: auto;
 }
 
 /* Tabular numbers for all data values */

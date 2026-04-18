@@ -76,11 +76,13 @@ export function Battlefield({
             marginBottom: 12,
             display: "inline-flex",
             alignItems: "center",
+            flexWrap: "wrap",
             gap: 10,
             padding: "10px 14px",
             border: `1px solid ${scoreColor}66`,
             borderRadius: 8,
             background: `${scoreColor}1a`,
+            maxWidth: "100%",
           }}
         >
           <span
@@ -96,7 +98,7 @@ export function Battlefield({
           <span
             className="mono"
             style={{
-              fontSize: 34,
+              fontSize: 30,
               lineHeight: 1,
               fontWeight: 700,
               color: scoreColor,
@@ -106,7 +108,7 @@ export function Battlefield({
           </span>
           <span
             style={{
-              fontSize: 16,
+              fontSize: 13,
               letterSpacing: "0.06em",
               fontWeight: 600,
               color: scoreColor,

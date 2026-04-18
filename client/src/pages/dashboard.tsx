@@ -28,12 +28,12 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="h-full grid grid-cols-1 md:grid-cols-[220px_1fr] grid-rows-[auto_1fr]">
+    <div className="h-full grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] grid-rows-[auto_1fr]">
       {/* Mobile header with hamburger */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
-        <div className="flex items-center gap-2">
+      <div className="md:hidden flex items-center justify-between gap-3 px-3 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
+        <div className="flex items-center gap-2 min-w-0">
           <KillzoneLogo size={24} />
-          <span className="text-sm font-semibold text-[hsl(210_10%_85%)]">
+          <span className="text-xs sm:text-sm font-semibold text-[hsl(210_10%_85%)] truncate">
             KILLZONE <span className="text-[#C49B30]">Gold</span> Intelligence
           </span>
           {/* Compact live dot for mobile */}
@@ -43,7 +43,7 @@ export default function Dashboard() {
         </div>
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="p-1.5 rounded-md hover:bg-[hsl(210_15%_16%)]"
+          className="p-2 rounded-md hover:bg-[hsl(210_15%_16%)]"
           data-testid="button-hamburger"
         >
           {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -55,24 +55,24 @@ export default function Dashboard() {
         ${sidebarOpen ? 'block' : 'hidden'} md:block
         md:row-span-2 bg-[hsl(210_22%_10%)] border-r border-[hsl(210_15%_14%)]
         overflow-y-auto overscroll-contain
-        ${sidebarOpen ? 'absolute inset-0 z-50 md:relative md:z-auto' : ''}
+        ${sidebarOpen ? 'fixed inset-0 z-50 md:relative md:z-auto' : ''}
       `}>
         <DashboardSidebar onClose={() => setSidebarOpen(false)} />
       </div>
 
       {/* Desktop Header */}
-      <header className="hidden md:flex items-center justify-between px-6 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
-        <h1 className="text-sm font-semibold tracking-wide text-[hsl(210_10%_85%)]">
+      <header className="hidden md:flex items-center justify-between gap-4 px-4 lg:px-6 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
+        <h1 className="text-xs lg:text-sm font-semibold tracking-wide text-[hsl(210_10%_85%)] whitespace-nowrap">
           KILLZONE <span className="text-[#C49B30]">Gold</span> Intelligence Dashboard
         </h1>
         <LiveStatusBar scoreData={scoreData} />
       </header>
 
       {/* Main content */}
-      <main className="overflow-y-auto overscroll-contain p-4 md:p-6 space-y-5" id="main-content">
+      <main className="overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-6 space-y-4 md:space-y-5" id="main-content">
         {/* Hero: Score Gauge (left) + Signal Drivers (right) */}
-        <section id="score-section" className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-5">
-          <div className="flex flex-col items-center justify-center bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-6">
+        <section id="score-section" className="grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] gap-4 md:gap-5">
+          <div className="flex flex-col items-center justify-center bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-6">
             {scoreLoading || !scoreData ? (
               <ScoreGaugeSkeleton />
             ) : (
@@ -87,7 +87,7 @@ export default function Dashboard() {
           </div>
 
           {/* Signal Drivers — Why Buy/Sell */}
-          <div className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5" id="drivers-section">
+          <div className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5" id="drivers-section">
             <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider mb-4">
               Signal Drivers
             </h2>
@@ -100,7 +100,7 @@ export default function Dashboard() {
         </section>
 
         {/* Signal Interpretation */}
-        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5" id="about-section">
+        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5" id="about-section">
           <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider mb-4">
             Signal Interpretation
           </h2>
@@ -112,8 +112,8 @@ export default function Dashboard() {
         </section>
 
         {/* Component Breakdown */}
-        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5">
-          <div className="flex items-center justify-between mb-4">
+        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
             <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider" id="components-section">
               Component Breakdown
             </h2>
@@ -127,7 +127,7 @@ export default function Dashboard() {
         </section>
 
         {/* Live Score Log */}
-        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5">
+        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider mb-4" id="log-section">
             Live Score Log
           </h2>
@@ -135,7 +135,7 @@ export default function Dashboard() {
         </section>
 
         {/* Score History */}
-        <section id="history-section" className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5">
+        <section id="history-section" className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider mb-4">
             Score History — 2015 to 2025
           </h2>
@@ -147,7 +147,7 @@ export default function Dashboard() {
         </section>
 
         {/* Underlying Data + Basis Tracker */}
-        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-5">
+        <section className="bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-5">
           <h2 className="text-sm font-semibold text-[hsl(210_10%_75%)] uppercase tracking-wider mb-4" id="data-section">
             Underlying Data
           </h2>

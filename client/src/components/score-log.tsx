@@ -420,10 +420,10 @@ export function ScoreLog() {
               </div>
             )}
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-[10px]">
+          <div className="overflow-x-auto pb-1">
+            <table className="w-full min-w-[760px] text-[11px]">
               <thead>
-                <tr className="text-[8px] uppercase tracking-wider text-[hsl(210_8%_40%)] border-b border-[hsl(210_15%_16%)]">
+                <tr className="text-[9px] uppercase tracking-wider text-[hsl(210_8%_40%)] border-b border-[hsl(210_15%_16%)]">
                   <th className="text-left py-1.5 pl-2 font-medium">Signal</th>
                   <th className="text-left py-1.5 font-medium">Entry</th>
                   <th className="text-right py-1.5 font-medium">Entry $</th>
@@ -456,7 +456,7 @@ export function ScoreLog() {
                       {/* Signal */}
                       <td className="py-2.5 pl-2">
                         <span
-                          className="inline-block text-[8px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded border text-center min-w-[56px]"
+                          className="inline-block text-[9px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded border text-center min-w-[64px]"
                           style={{ color: sc.text, backgroundColor: sc.bg, borderColor: sc.border }}
                         >
                           {zone.signal}
@@ -471,7 +471,7 @@ export function ScoreLog() {
                         ${zone.entryPrice.toFixed(2)}
                       </td>
                       {/* TP / SL levels */}
-                      <td className="py-2.5 text-right font-mono tabular-nums text-[9px]">
+                      <td className="py-2.5 text-right font-mono tabular-nums text-[10px]">
                         <span className="text-[#5fad46]">${zone.tpPrice.toFixed(0)}</span>
                         <span className="text-[hsl(210_8%_30%)] mx-0.5">/</span>
                         <span className="text-[#d15a5a]">${zone.slPrice.toFixed(0)}</span>
@@ -479,7 +479,7 @@ export function ScoreLog() {
                       {/* SL Progress bar */}
                       <td className="py-2.5 px-2">
                         <div className="flex flex-col items-center gap-0.5">
-                          <div className="w-20 h-1.5 rounded-full bg-[hsl(210_15%_14%)] overflow-hidden relative">
+                          <div className="w-24 h-1.5 rounded-full bg-[hsl(210_15%_14%)] overflow-hidden relative">
                             <div
                               className="h-full rounded-full transition-all"
                               style={{
@@ -488,7 +488,7 @@ export function ScoreLog() {
                               }}
                             />
                           </div>
-                          <span className="text-[8px] font-mono tabular-nums" style={{ color: zone.slProgress >= 100 ? "#ef4444" : zone.slProgress >= 70 ? "#c97040" : "#d15a5a60" }}>
+                          <span className="text-[9px] font-mono tabular-nums" style={{ color: zone.slProgress >= 100 ? "#ef4444" : zone.slProgress >= 70 ? "#c97040" : "#d15a5a60" }}>
                             {zone.slProgress}%{zone.slProgress >= 100 ? " ⚠" : ""}
                           </span>
                         </div>
@@ -496,7 +496,7 @@ export function ScoreLog() {
                       {/* TP Progress bar */}
                       <td className="py-2.5 px-2">
                         <div className="flex flex-col items-center gap-0.5">
-                          <div className="w-20 h-1.5 rounded-full bg-[hsl(210_15%_14%)] overflow-hidden">
+                          <div className="w-24 h-1.5 rounded-full bg-[hsl(210_15%_14%)] overflow-hidden">
                             <div
                               className="h-full rounded-full transition-all"
                               style={{
@@ -505,7 +505,7 @@ export function ScoreLog() {
                               }}
                             />
                           </div>
-                          <span className="text-[8px] font-mono tabular-nums" style={{ color: zone.tpProgress >= 100 ? "#4ade80" : zone.tpProgress >= 50 ? "#5fad46" : "#5fad4660" }}>
+                          <span className="text-[9px] font-mono tabular-nums" style={{ color: zone.tpProgress >= 100 ? "#4ade80" : zone.tpProgress >= 50 ? "#5fad46" : "#5fad4660" }}>
                             {zone.tpProgress}%{zone.tpProgress >= 100 ? " ✓" : ""}
                           </span>
                         </div>
@@ -525,7 +525,7 @@ export function ScoreLog() {
                       {/* Outcome badge */}
                       <td className="py-2.5 pl-2 pr-2">
                         <span
-                          className="inline-block text-[8px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded"
+                          className="inline-block text-[9px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded"
                           style={{ color: oc.color, backgroundColor: oc.bg }}
                         >
                           {oc.label}
@@ -537,13 +537,13 @@ export function ScoreLog() {
               </tbody>
             </table>
           </div>
-          <div className="text-[9px] text-[hsl(210_8%_35%)] mt-1 px-2">
+          <div className="text-[11px] text-[hsl(210_8%_35%)] mt-1 px-2">
             TP = {tpPips} pips target · SL = {slPips} pips stop · Peak DD = max adverse excursion · Peak Profit = max favourable excursion · HOLD/REDUCE = flat (no position)
           </div>
         </div>
       )}
 
-      <div className="text-[10px] text-[hsl(210_8%_38%)] text-center pt-1">
+      <div className="text-[11px] text-[hsl(210_8%_38%)] text-center pt-1">
         1 pip = $0.10 (XAUUSD) · BUY/STRONG BUY = long · SELL/STRONG SELL = short · HOLD/REDUCE = flat
       </div>
     </div>
@@ -578,10 +578,10 @@ function RawReadingsLog({ entries }: { entries: ScoreLogEntry[] }) {
           </button>
         )}
       </div>
-      <div className="overflow-x-auto">
-        <table className="w-full text-[10px]">
+      <div className="overflow-x-auto pb-1">
+        <table className="w-full min-w-[620px] text-[11px]">
           <thead>
-            <tr className="text-[8px] uppercase tracking-wider text-[hsl(210_8%_40%)] border-b border-[hsl(210_15%_16%)]">
+            <tr className="text-[9px] uppercase tracking-wider text-[hsl(210_8%_40%)] border-b border-[hsl(210_15%_16%)]">
               <th className="text-left py-1 pl-2 font-medium">Time</th>
               <th className="text-right py-1 font-medium">Score</th>
               <th className="text-left py-1 pl-2 font-medium">Signal</th>
@@ -608,12 +608,12 @@ function RawReadingsLog({ entries }: { entries: ScoreLogEntry[] }) {
                 >
                   <td className="py-1 pl-2 font-mono tabular-nums text-[hsl(210_8%_50%)]">
                     {formatDate(entry.timestamp)} {formatTime(entry.timestamp)}
-                    {isLatest && <span className="ml-1 text-[8px] text-emerald-400 font-semibold">NOW</span>}
-                    {zoneChanged && <span className="ml-1 text-[8px] text-[#C49B30]">⚡ ZONE CHANGE</span>}
+                    {isLatest && <span className="ml-1 text-[9px] text-emerald-400 font-semibold">NOW</span>}
+                    {zoneChanged && <span className="ml-1 text-[9px] text-[#C49B30]">⚡ ZONE CHANGE</span>}
                   </td>
                   <td className="py-1 text-right font-mono font-bold tabular-nums" style={{ color: sc.text }}>{entry.score}</td>
                   <td className="py-1 pl-2">
-                    <span className="text-[8px] font-bold font-mono px-1 py-0.5 rounded" style={{ color: sc.text, backgroundColor: sc.bg }}>
+                    <span className="text-[9px] font-bold font-mono px-1 py-0.5 rounded" style={{ color: sc.text, backgroundColor: sc.bg }}>
                       {entry.signal}
                     </span>
                   </td>
@@ -633,7 +633,7 @@ function RawReadingsLog({ entries }: { entries: ScoreLogEntry[] }) {
         </table>
       </div>
       {!expanded && hiddenCount > 0 && (
-        <div className="text-[9px] text-[hsl(210_8%_33%)] text-center mt-1">
+        <div className="text-[11px] text-[hsl(210_8%_33%)] text-center mt-1">
           Showing zone transitions only · {hiddenCount} intermediate readings hidden
         </div>
       )}

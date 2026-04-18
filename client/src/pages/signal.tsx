@@ -87,30 +87,30 @@ export default function SignalPage() {
   return (
     <div className="min-h-screen bg-[#0F1419] text-white">
       {/* Compact header */}
-      <header className="flex items-center justify-between px-4 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
-        <div className="flex items-center gap-2">
+      <header className="flex items-center justify-between gap-2 px-3 sm:px-4 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
+        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
           <span className="text-sm font-bold tracking-wide text-[hsl(210_10%_85%)]">
             KILL<span className="text-[#C49B30]">ZONE</span>
           </span>
-          <span className="text-[10px] text-[hsl(210_8%_45%)] uppercase tracking-wider">Signal</span>
+          <span className="text-[10px] text-[hsl(210_8%_45%)] uppercase tracking-wider truncate">Signal</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1.5 text-[10px] font-mono text-[hsl(210_8%_50%)]">
+          <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-mono text-[hsl(210_8%_50%)]">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
             {liveTime}
           </div>
           <button
             onClick={() => refetch()}
             disabled={isFetching}
-            className="p-1.5 rounded-md hover:bg-[hsl(210_15%_16%)] text-[hsl(210_8%_45%)] hover:text-white transition-colors"
+            className="p-2 rounded-md hover:bg-[hsl(210_15%_16%)] text-[hsl(210_8%_45%)] hover:text-white transition-colors"
           >
             <RefreshCw size={14} className={isFetching ? "animate-spin" : ""} />
           </button>
-          <LogoutButton className="inline-flex items-center gap-1 rounded-md border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_12%)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[hsl(210_8%_55%)] hover:bg-[hsl(210_15%_16%)]" />
+          <LogoutButton className="inline-flex items-center gap-1 rounded-md border border-[hsl(210_15%_18%)] bg-[hsl(210_22%_12%)] px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-[hsl(210_8%_55%)] hover:bg-[hsl(210_15%_16%)]" />
         </div>
       </header>
 
-      <main className="max-w-xl mx-auto p-4 space-y-4">
+      <main className="max-w-xl mx-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {/* ═══ HERO: Price + Bias ═══ */}
         <div
           className="rounded-xl border p-5 text-center relative overflow-hidden"
@@ -121,7 +121,7 @@ export default function SignalPage() {
 
           <div className="relative z-10">
             <div className="text-[10px] uppercase tracking-[0.2em] text-[hsl(210_8%_55%)] mb-2">XAUUSD Spot</div>
-            <div className="text-4xl font-bold font-mono tabular-nums tracking-tight" style={{ color: bc.color }}>
+            <div className="text-3xl sm:text-4xl font-bold font-mono tabular-nums tracking-tight" style={{ color: bc.color }}>
               ${data.gold.toFixed(2)}
             </div>
             <div className="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full border" style={{ borderColor: bc.border, backgroundColor: `${bc.color}10` }}>
@@ -141,9 +141,9 @@ export default function SignalPage() {
           className="rounded-lg border px-4 py-3 flex items-center justify-between"
           style={{ backgroundColor: bc.bg, borderColor: bc.border }}
         >
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <Zap size={16} style={{ color: bc.color }} />
-            <span className="text-sm font-bold font-mono tracking-wider" style={{ color: bc.color }}>
+            <span className="text-xs sm:text-sm font-bold font-mono tracking-wider truncate" style={{ color: bc.color }}>
               {data.tradeZone}
             </span>
           </div>
@@ -154,7 +154,7 @@ export default function SignalPage() {
 
         {/* ═══ KEY LEVELS (if directional) ═══ */}
         {data.bias !== "NEUTRAL" && (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div className="rounded-lg bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] p-3 text-center">
               <div className="text-[9px] uppercase tracking-wider text-[#4ade80] mb-1 flex items-center justify-center gap-1">
                 <Target size={9} /> TP

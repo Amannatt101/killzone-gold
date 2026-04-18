@@ -38,7 +38,16 @@ export function ScoreGauge({
   dataStatus?: string;
 }) {
   const [animatedScore, setAnimatedScore] = useState(0);
+  const [isCompact, setIsCompact] = useState(false);
   const prevScore = useRef(0);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsCompact(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const start = prevScore.current;
@@ -70,7 +79,7 @@ export function ScoreGauge({
   const tradeSignal = getTradeSignal(score);
 
   // SVG Arc gauge parameters
-  const size = 200;
+  const size = isCompact ? 164 : 200;
   const strokeWidth = 12;
   const radius = (size - strokeWidth) / 2;
   const center = size / 2;
@@ -215,7 +224,7 @@ export function ScoreGauge({
         data-testid="trade-signal"
       >
         <div
-          className="text-sm font-bold font-mono tracking-wider px-4 py-1.5 rounded-md"
+          className="text-xs sm:text-sm font-bold font-mono tracking-wider px-3 sm:px-4 py-1.5 rounded-md"
           style={{
             color: tradeSignal.color,
             backgroundColor: `${tradeSignal.color}18`,
@@ -224,7 +233,7 @@ export function ScoreGauge({
         >
           {tradeSignal.label}
         </div>
-        <div className="text-[10px] text-[hsl(210_8%_55%)] mt-1.5 text-center">
+        <div className="text-[11px] text-[hsl(210_8%_55%)] mt-1.5 text-center px-2">
           {tradeSignal.sublabel}
         </div>
       </div>

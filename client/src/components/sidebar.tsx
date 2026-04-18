@@ -50,7 +50,7 @@ export function DashboardSidebar({ onClose }: { onClose: () => void }) {
           <button
             key={item.label}
             onClick={() => scrollTo(item.target)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-[hsl(210_8%_55%)] hover:text-[hsl(210_10%_85%)] hover:bg-[hsl(210_15%_16%)] transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-[hsl(210_8%_55%)] hover:text-[hsl(210_10%_85%)] hover:bg-[hsl(210_15%_16%)] transition-colors"
             data-testid={`link-${item.label.toLowerCase()}`}
           >
             <item.icon size={16} className="shrink-0" />
@@ -61,7 +61,7 @@ export function DashboardSidebar({ onClose }: { onClose: () => void }) {
         {/* Signal page link */}
         <a
           href={signalLink.href}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-[#C49B30] hover:text-[#e0b942] hover:bg-[#C49B3012] transition-colors border border-[#C49B3020] mt-2"
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-[#C49B30] hover:text-[#e0b942] hover:bg-[#C49B3012] transition-colors border border-[#C49B3020] mt-2"
         >
           <signalLink.icon size={16} className="shrink-0" />
           {signalLink.label}
@@ -71,7 +71,7 @@ export function DashboardSidebar({ onClose }: { onClose: () => void }) {
         {/* Chart page link */}
         <a
           href={chartLink.href}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm text-[#20808D] hover:text-[#2aa3b3] hover:bg-[#20808D12] transition-colors border border-[#20808D20] mt-1"
+          className="w-full flex items-center gap-3 px-3 py-3 rounded-md text-sm text-[#20808D] hover:text-[#2aa3b3] hover:bg-[#20808D12] transition-colors border border-[#20808D20] mt-1"
         >
           <chartLink.icon size={16} className="shrink-0" />
           {chartLink.label}

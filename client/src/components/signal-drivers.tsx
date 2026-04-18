@@ -226,10 +226,10 @@ export function SignalDrivers({
       </div>
 
       {/* Driver table */}
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px]">
+      <div className="overflow-x-auto pb-1">
+        <table className="w-full min-w-[680px] text-[11px] sm:text-[12px]">
           <thead>
-            <tr className="text-[9px] uppercase tracking-wider text-[hsl(210_8%_45%)] border-b border-[hsl(210_15%_16%)]">
+            <tr className="text-[10px] uppercase tracking-wider text-[hsl(210_8%_45%)] border-b border-[hsl(210_15%_16%)]">
               <th className="text-left py-2 pl-2 font-medium">Component</th>
               <th className="text-right py-2 font-medium">Score</th>
               <th className="text-right py-2 font-medium">Weight</th>
@@ -261,7 +261,7 @@ export function SignalDrivers({
                   </td>
                   <td className="py-2 pl-3">
                     <span
-                      className="inline-flex items-center gap-1 text-[9px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded"
+                      className="inline-flex items-center gap-1 text-[10px] font-bold font-mono tracking-wide px-1.5 py-0.5 rounded"
                       style={{
                         color: bc.text,
                         backgroundColor: bc.bg,
@@ -271,7 +271,7 @@ export function SignalDrivers({
                       {d.bias.toUpperCase()}
                     </span>
                   </td>
-                  <td className="py-2 pl-3 pr-2 text-[10px] text-[hsl(210_8%_55%)] max-w-[280px]">
+                  <td className="py-2 pl-3 pr-2 text-[11px] text-[hsl(210_8%_55%)] max-w-[320px]">
                     {d.reason}
                   </td>
                 </tr>
@@ -291,7 +291,7 @@ export function SignalDrivers({
               </td>
               <td colSpan={2} className="py-2 pl-3">
                 <span
-                  className="text-[10px] font-bold font-mono tracking-wide px-2 py-0.5 rounded border"
+                  className="text-[11px] font-bold font-mono tracking-wide px-2 py-0.5 rounded border"
                   style={{
                     color: signalColor,
                     backgroundColor: `${signalColor}15`,
@@ -307,7 +307,7 @@ export function SignalDrivers({
       </div>
 
       {/* Caveat */}
-      <div className="text-[10px] text-[hsl(210_8%_38%)] leading-relaxed px-1">
+      <div className="text-[11px] text-[hsl(210_8%_38%)] leading-relaxed px-1">
         This model measures whether macro conditions favour gold demand — not whether gold is cheap or expensive.
         {score >= 65 && (
           <> Even with a {signal} signal, gold at all-time highs carries asymmetric downside risk. Consider position sizing accordingly.</>

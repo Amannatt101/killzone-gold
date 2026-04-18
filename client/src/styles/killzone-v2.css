@@ -3,8 +3,8 @@
 /* Shell typography + layout (scoped): replaces prototype html/body/#root rules */
 .kz-v2.kz-v2-shell {
   width: 100%;
-  height: 100vh;
-  min-height: 100vh;
+  height: 100%;
+  min-height: 100dvh;
   overflow: hidden;
   background: var(--bg-0);
   color: var(--text-1);
@@ -101,7 +101,7 @@
 .kz-v2 .app {
   display: grid;
   grid-template-rows: var(--topbar-h) 1fr;
-  height: 100vh;
+  height: 100%;
   background: var(--bg-0);
 }
 
@@ -1176,7 +1176,7 @@
 }
 .kz-v2 .v2-right {
   flex: 1 1 0;
-  min-width: 360px;
+  min-width: 320px;
   margin: 10px 10px 10px 5px;
   background: var(--bg-1);
   border: 1px solid var(--line-1);
@@ -2190,4 +2190,51 @@
 }
 
 /* rail state re-uses from previous — but keep the v2 chart-less so no rail */
+
+@media (max-width: 1279px) {
+  .kz-v2 .v2-right { min-width: 280px; }
+}
+
+@media (max-width: 1024px) {
+  .kz-v2 .topbar {
+    height: auto;
+    min-height: var(--topbar-h);
+    flex-wrap: wrap;
+    row-gap: 8px;
+    padding: 8px 12px;
+    overflow-x: visible;
+  }
+  .kz-v2 .brand {
+    border-right: none;
+    padding-right: 0;
+  }
+  .kz-v2 .topbar-spacer {
+    display: none;
+  }
+  .kz-v2 .v2-workspace {
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .kz-v2 .v2-main,
+  .kz-v2 .v2-right {
+    margin: 8px;
+    min-width: 0;
+  }
+  .kz-v2 .v2-inner {
+    padding: 16px;
+    gap: 14px;
+  }
+}
+
+@media (max-width: 640px) {
+  .kz-v2 .brand-name { font-size: 11px; }
+  .kz-v2 .brand-sub { font-size: 9px; letter-spacing: 0.16em; }
+  .kz-v2 .tkr { gap: 8px; }
+  .kz-v2 .tkr-price { font-size: 13px; }
+  .kz-v2 .tkr-score { padding: 3px 6px; }
+  .kz-v2 .topbar-meta { font-size: 10px; gap: 8px; }
+  .kz-v2 .w-head { padding: 10px 12px; }
+  .kz-v2 .w-head .title { font-size: 9px; letter-spacing: 0.14em; }
+  .kz-v2 .w-head .meta { font-size: 9px; }
+}
 

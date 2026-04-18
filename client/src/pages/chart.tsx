@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createChart, ColorType, CandlestickSeries, LineSeries, AreaSeries } from "lightweight-charts";
 import chartData from "@/data/chart-data.json";
@@ -35,6 +35,7 @@ function scoreLabel(s: number): string {
 export default function ChartPage() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<ReturnType<typeof createChart> | null>(null);
+  const [isNarrow, setIsNarrow] = useState(false);
 
   const { data: liveSignal } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
@@ -52,6 +53,14 @@ export default function ChartPage() {
       scoreMap.set(s.time, s.value);
     }
   }
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 1024px)");
+    const sync = () => setIsNarrow(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
 
   useEffect(() => {
     const el = chartContainerRef.current;
@@ -117,18 +126,18 @@ export default function ChartPage() {
   const gaugeAngle = (sc / 100) * 180;
 
   return (
-    <div style={{ background: "#0F1419", height: "100vh", width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ background: "#0F1419", minHeight: "100vh", width: "100%", display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "6px 16px", borderBottom: "1px solid #1C2530", background: "#0A0F14", flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-          <span style={{ fontSize: 14, fontWeight: 700, letterSpacing: "0.1em" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, flexWrap: "wrap", padding: isNarrow ? "8px 10px" : "6px 16px", borderBottom: "1px solid #1C2530", background: "#0A0F14", flexShrink: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: isNarrow ? 8 : 14, flexWrap: "wrap" }}>
+          <span style={{ fontSize: isNarrow ? 12 : 14, fontWeight: 700, letterSpacing: "0.1em" }}>
             <span style={{ color: "#C49B30" }}>KILL</span><span style={{ color: "#9CA3AF" }}>ZONE</span>
           </span>
-          <span style={{ color: "#4B5563" }}>|</span>
-          <span style={{ color: "#E5E7EB", fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD</span>
+          {!isNarrow && <span style={{ color: "#4B5563" }}>|</span>}
+          <span style={{ color: "#E5E7EB", fontSize: isNarrow ? 13 : 15, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD</span>
           <span style={{ color: "#6B7280", fontSize: 11 }}>1H</span>
-          <span style={{ color: "#E5E7EB", fontSize: 15, fontWeight: 700, fontFamily: "monospace" }}>${safeFixed(price)}</span>
-          <span style={{ color: sColor, fontSize: 11, fontWeight: 700, fontFamily: "monospace", background: `${sColor}12`, border: `1px solid ${sColor}25`, padding: "3px 10px", borderRadius: 4 }}>
+          <span style={{ color: "#E5E7EB", fontSize: isNarrow ? 13 : 15, fontWeight: 700, fontFamily: "monospace" }}>${safeFixed(price)}</span>
+          <span style={{ color: sColor, fontSize: isNarrow ? 10 : 11, fontWeight: 700, fontFamily: "monospace", background: `${sColor}12`, border: `1px solid ${sColor}25`, padding: isNarrow ? "2px 8px" : "3px 10px", borderRadius: 4 }}>
             Score {safeFixed(sc, 0)} — {scoreLabel(sc)}
           </span>
         </div>
@@ -136,12 +145,20 @@ export default function ChartPage() {
       </div>
 
       {/* Main: Chart + Panel */}
-      <div style={{ display: "flex", flex: 1, minHeight: 0, overflow: "hidden" }}>
+      <div style={{ display: "flex", flexDirection: isNarrow ? "column" : "row", flex: 1, minHeight: 0, overflow: "hidden" }}>
         {/* Chart — 50% */}
-        <div ref={chartContainerRef} style={{ flex: 1, minWidth: 0, height: "100%" }} />
+        <div
+          ref={chartContainerRef}
+          style={{
+            flex: isNarrow ? "0 0 auto" : 1,
+            minWidth: 0,
+            height: isNarrow ? "42vh" : "100%",
+            minHeight: isNarrow ? 300 : undefined,
+          }}
+        />
 
         {/* Intelligence Panel — 50% */}
-        <div style={{ flex: 1, minWidth: 0, height: "100%", overflowY: "auto", borderLeft: "1px solid #1C2530", background: "#0A0F14" }}>
+        <div style={{ flex: 1, minWidth: 0, height: "100%", overflowY: "auto", borderLeft: isNarrow ? "none" : "1px solid #1C2530", borderTop: isNarrow ? "1px solid #1C2530" : "none", background: "#0A0F14" }}>
           {signal && (
             <div style={{ padding: "14px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
 

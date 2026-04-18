@@ -94,10 +94,10 @@ export function LiveStatusBar({ scoreData }: Props) {
   const sources = scoreData?.sources;
 
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex items-center gap-2 lg:gap-3 flex-wrap justify-end">
       {/* Source pills */}
       {sources && (
-        <div className="flex items-center gap-1.5">
+        <div className="hidden lg:flex items-center gap-1.5">
           <SourcePill label="FRED" active={sources.fred} />
           <SourcePill label="Yahoo" active={sources.yahoo} />
           <SourcePill label="GPR" active={sources.gpr} />
@@ -105,25 +105,25 @@ export function LiveStatusBar({ scoreData }: Props) {
       )}
 
       {/* Divider */}
-      {sources && <div className="w-px h-4 bg-[hsl(210_15%_20%)]" />}
+      {sources && <div className="hidden lg:block w-px h-4 bg-[hsl(210_15%_20%)]" />}
 
       {/* Last fetched */}
       {scoreData?.lastFetched && (
-        <span className="text-[10px] font-mono tabular-nums text-[hsl(210_8%_50%)]">
+        <span className="text-[11px] font-mono tabular-nums text-[hsl(210_8%_50%)]">
           {formatTimeAgo(scoreData.lastFetched)}
         </span>
       )}
 
       {/* Next refresh countdown */}
       {scoreData?.nextRefresh && status === "live" && (
-        <span className="text-[10px] font-mono tabular-nums text-[hsl(210_8%_40%)]">
+        <span className="hidden xl:inline text-[11px] font-mono tabular-nums text-[hsl(210_8%_40%)]">
           next: {getCountdown(scoreData.nextRefresh)}
         </span>
       )}
 
       {/* Status badge */}
       <div
-        className="flex items-center gap-1.5 px-2 py-1 rounded-md border text-[10px] font-bold font-mono tracking-widest"
+        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-[10px] font-bold font-mono tracking-widest"
         style={{
           color: config.color,
           backgroundColor: config.bgColor,
@@ -145,7 +145,7 @@ export function LiveStatusBar({ scoreData }: Props) {
       <button
         onClick={handleRefresh}
         disabled={isRefreshing}
-        className="p-1 rounded-md hover:bg-[hsl(210_15%_16%)] text-[hsl(210_8%_45%)] hover:text-[hsl(210_10%_70%)] transition-colors disabled:opacity-50"
+        className="p-2 rounded-md hover:bg-[hsl(210_15%_16%)] text-[hsl(210_8%_45%)] hover:text-[hsl(210_10%_70%)] transition-colors disabled:opacity-50"
         title="Refresh data now"
       >
         <RefreshCw size={13} className={isRefreshing ? "animate-spin" : ""} />
