@@ -28,7 +28,7 @@ export default function Dashboard() {
   });
 
   return (
-    <div className="h-full grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)] grid-rows-[auto_1fr]">
+    <div className="min-h-dvh w-full grid grid-cols-1 md:grid-cols-[220px_minmax(0,1fr)]">
       {/* Mobile header with hamburger */}
       <div className="md:hidden flex items-center justify-between gap-3 px-3 py-3 bg-[hsl(210_22%_10%)] border-b border-[hsl(210_15%_14%)]">
         <div className="flex items-center gap-2 min-w-0">
@@ -54,7 +54,7 @@ export default function Dashboard() {
       <div className={`
         ${sidebarOpen ? 'block' : 'hidden'} md:block
         md:row-span-2 bg-[hsl(210_22%_10%)] border-r border-[hsl(210_15%_14%)]
-        overflow-y-auto overscroll-contain
+        overflow-y-auto overscroll-contain md:overflow-y-visible
         ${sidebarOpen ? 'fixed inset-0 z-50 md:relative md:z-auto' : ''}
       `}>
         <DashboardSidebar onClose={() => setSidebarOpen(false)} />
@@ -69,7 +69,7 @@ export default function Dashboard() {
       </header>
 
       {/* Main content */}
-      <main className="overflow-y-auto overscroll-contain p-3 sm:p-4 md:p-6 space-y-4 md:space-y-5" id="main-content">
+      <main className="min-w-0 p-3 sm:p-4 md:p-6 space-y-4 md:space-y-5" id="main-content">
         {/* Hero: Score Gauge (left) + Signal Drivers (right) */}
         <section id="score-section" className="grid grid-cols-1 lg:grid-cols-[minmax(280px,340px)_minmax(0,1fr)] gap-4 md:gap-5">
           <div className="flex flex-col items-center justify-center bg-[hsl(210_20%_11%)] border border-[hsl(210_15%_14%)] rounded-lg p-4 sm:p-6">

@@ -1154,10 +1154,14 @@
 
 /* styles-v2.css — Intelligence Dashboard widgets (no chart) */
 
-/* workspace layout for v2: main insights area | right rail */
+/* workspace layout for v2: main insights area | right rail
+   Single vertical scroll on .v2-workspace (no nested column scrollbars). */
 .kz-v2 .v2-workspace {
   display: flex;
+  align-items: flex-start;
   min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: var(--bg-0);
 }
 
@@ -1168,7 +1172,7 @@
   background: var(--bg-1);
   border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   container-type: inline-size;
@@ -1181,14 +1185,17 @@
   background: var(--bg-1);
   border: 1px solid var(--line-1);
   border-radius: var(--radius-lg);
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   flex-direction: column;
   container-type: inline-size;
   container-name: intel;
 }
 
-.kz-v2 .v2-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; }
+.kz-v2 .v2-scroll {
+  flex: 0 0 auto;
+  overflow: visible;
+}
 .kz-v2 .v2-inner { padding: 20px 22px 28px; display: flex; flex-direction: column; gap: 18px; }
 
 /* section primitive */
@@ -2213,12 +2220,15 @@
   }
   .kz-v2 .v2-workspace {
     flex-direction: column;
-    overflow-y: auto;
+    align-items: stretch;
   }
   .kz-v2 .v2-main,
   .kz-v2 .v2-right {
+    flex: 0 0 auto;
     margin: 8px;
     min-width: 0;
+    width: 100%;
+    box-sizing: border-box;
   }
   .kz-v2 .v2-inner {
     padding: 16px;
