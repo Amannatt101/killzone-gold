@@ -63,8 +63,10 @@ function colorFor(s: number): string {
 
 export function ScoreHistory({
   series,
+  shifts,
 }: {
   series?: { d: string; s: number }[];
+  shifts?: { from: string; to: string; chg: number; kind: "up" | "down" | "flat"; reason: string }[];
 }) {
   const SCORE_HISTORY = useMemo(() => {
     if (series?.length) return series.slice(-14);
@@ -128,7 +130,7 @@ export function ScoreHistory({
         </div>
 
         <div className="sh-shifts">
-          {SHIFTS.map((s, i) => (
+          {(shifts?.length ? shifts : SHIFTS).map((s, i) => (
             <div key={i} className={`sh-shift ${s.kind}`}>
               <div className="sh-shift-date mono">{s.from}</div>
               <div className={`sh-shift-chg ${s.kind} mono`}>

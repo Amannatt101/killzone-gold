@@ -53,7 +53,13 @@ function regimeKeyFromLabel(regime: string): "range" | "trend" | "vol" {
   return "range";
 }
 
-export function MarketRegime({ regimeLabel }: { regimeLabel: string }) {
+export function MarketRegime({
+  regimeLabel,
+  metrics,
+}: {
+  regimeLabel: string;
+  metrics?: { label: string; value: string; sub: string }[];
+}) {
   const activeKey = regimeKeyFromLabel(regimeLabel);
 
   return (
@@ -73,21 +79,20 @@ export function MarketRegime({ regimeLabel }: { regimeLabel: string }) {
         </div>
         <div className="regime-desc">{regimeLabel}</div>
         <div className="regime-metrics">
-          <div className="regime-metric">
-            <div className="lbl">Model</div>
-            <div className="val mono">7-factor</div>
-            <div className="sub mono">safe haven</div>
-          </div>
-          <div className="regime-metric">
-            <div className="lbl">Horizon</div>
-            <div className="val mono">Macro</div>
-            <div className="sub mono">not intraday</div>
-          </div>
-          <div className="regime-metric">
-            <div className="lbl">Stance</div>
-            <div className="val mono">Context</div>
-            <div className="sub mono">not a signal</div>
-          </div>
+          {(metrics?.length
+            ? metrics
+            : [
+                { label: "Model", value: "7-factor", sub: "safe haven" },
+                { label: "Horizon", value: "Macro", sub: "not intraday" },
+                { label: "Stance", value: "Context", sub: "not a signal" },
+              ]
+          ).map((m) => (
+            <div className="regime-metric" key={m.label}>
+              <div className="lbl">{m.label}</div>
+              <div className="val mono">{m.value}</div>
+              <div className="sub mono">{m.sub}</div>
+            </div>
+          ))}
         </div>
       </div>
     </div>

@@ -15,6 +15,15 @@ export type IntelligenceDashboardProps = {
   regimeLabel: string;
   nextRefreshIso?: string | null;
   scoreSeries?: { d: string; s: number }[];
+  scoreShifts?: { from: string; to: string; chg: number; kind: "up" | "down" | "flat"; reason: string }[];
+  invalidationRows?: {
+    trigger: ReactNode;
+    exp: string;
+    status: "near" | "armed" | "remote";
+    statusLbl: string;
+  }[];
+  sessionStats?: Record<string, string>;
+  regimeMetrics?: { label: string; value: string; sub: string }[];
   narrative: {
     updatedTs: string;
     statement: ReactNode;
@@ -45,6 +54,10 @@ export function IntelligenceDashboard({
   regimeLabel,
   nextRefreshIso,
   scoreSeries,
+  scoreShifts,
+  invalidationRows,
+  sessionStats,
+  regimeMetrics,
   narrative,
   positioning,
   topbar,
@@ -202,22 +215,22 @@ export function IntelligenceDashboard({
               <div className="v2-inner">
                 <Battlefield reasons={signal.reasons} />
                 <MarketNarrative {...narrative} />
-                <ScoreHistory series={scoreSeries} />
-                <Invalidation />
+                <ScoreHistory series={scoreSeries} shifts={scoreShifts} />
+                <Invalidation rows={invalidationRows} />
               </div>
             </div>
           </div>
           <div className="v2-right">
             <div className="v2-scroll">
               <div className="v2-inner">
-                <MarketRegime regimeLabel={regimeLabel} />
+                <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
                 <PositioningBias
                   bias={signal.bias}
                   score={signal.score}
                   title={positioning.title}
                   body={positioning.body}
                 />
-                <KillzoneTiming />
+                <KillzoneTiming stats={sessionStats} />
 
                 <div
                   style={{

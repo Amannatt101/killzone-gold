@@ -56,7 +56,11 @@ const INVALIDATIONS: InvRow[] = [
   },
 ];
 
-export function Invalidation() {
+export function Invalidation({
+  rows,
+}: {
+  rows?: InvRow[];
+}) {
   return (
     <div className="w-card">
       <div className="w-head">
@@ -64,7 +68,7 @@ export function Invalidation() {
         <div className="meta">WHAT WOULD BREAK THIS NARRATIVE</div>
       </div>
       <div className="inv-list">
-        {INVALIDATIONS.map((iv, i) => (
+        {(rows?.length ? rows : INVALIDATIONS).map((iv, i) => (
           <div key={i} className="inv-row">
             <div className="inv-idx">0{i + 1}</div>
             <div className="inv-body">

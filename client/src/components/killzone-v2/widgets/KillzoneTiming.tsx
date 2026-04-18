@@ -62,7 +62,11 @@ function sessionStatus(active: boolean, s: (typeof SESSIONS)[0], nowHour: number
   return `Live · ${h}h ${m}m remaining`;
 }
 
-export function KillzoneTiming() {
+export function KillzoneTiming({
+  stats,
+}: {
+  stats?: Record<string, string>;
+}) {
   const now = new Date();
   const utcH = now.getUTCHours();
   const utcM = now.getUTCMinutes();
@@ -89,7 +93,7 @@ export function KillzoneTiming() {
               </div>
               <div className="kz-session-body">{s.body}</div>
               <div className="kz-session-footer">
-                <span className="mono">{s.stat}</span>
+                <span className="mono">{stats?.[s.name] ?? s.stat}</span>
                 <span className={`kz-session-tone ${s.tone}`}>{s.toneLbl}</span>
               </div>
               <div
