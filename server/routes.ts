@@ -125,6 +125,11 @@ export async function registerRoutes(
   // Start live data auto-refresh on server boot
   startAutoRefresh();
 
+  /** Public — for load balancers (e.g. Render health checks). Must stay before the /api auth gate. */
+  app.get("/api/health", (_req, res) => {
+    res.status(200).json({ ok: true });
+  });
+
   app.post("/api/auth/send-magic-link", async (req, res) => {
     const email = typeof req.body?.email === "string" ? req.body.email : "";
     const result = await sendMagicLinkIfAllowed(email);

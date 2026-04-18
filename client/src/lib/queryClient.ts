@@ -1,8 +1,7 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import { apiUrl } from "./apiBase";
 import { clearStoredAuthToken, getStoredAuthToken } from "./authToken";
 import { getAccessToken, supabase } from "./supabase";
-
-const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
 async function authHeaders(): Promise<Record<string, string>> {
   const localToken = getStoredAuthToken();
@@ -35,7 +34,7 @@ export async function apiRequest(
   data?: unknown | undefined,
 ): Promise<Response> {
   const auth = await authHeaders();
-  const res = await fetch(`${API_BASE}${url}`, {
+  const res = await fetch(apiUrl(url), {
     method,
     headers: {
       ...auth,
@@ -55,7 +54,7 @@ export const getQueryFn: <T>(options: {
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
     const auth = await authHeaders();
-    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, {
+    const res = await fetch(apiUrl(queryKey.join("/")), {
       headers: auth,
     });
 

@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import type { ScoreResponse } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 import { RefreshCw, Wifi, WifiOff, Clock, CheckCircle2, AlertCircle } from "lucide-react";
 
 interface Props {
@@ -80,7 +81,7 @@ export function LiveStatusBar({ scoreData }: Props) {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      await fetch("/api/refresh", { method: "POST" });
+      await apiRequest("POST", "/api/refresh");
       // Force refetch of score data
       window.location.reload();
     } catch {

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useHashLocation } from "wouter/use-hash-location";
+import { apiUrl } from "@/lib/apiBase";
 import { supabase, supabaseConfigured } from "@/lib/supabase";
 import { clearStoredAuthToken, getStoredAuthToken } from "@/lib/authToken";
 
@@ -24,7 +25,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
 
       const localToken = getStoredAuthToken();
       if (localToken) {
-        const r = await fetch("/api/auth/session", {
+        const r = await fetch(apiUrl("/api/auth/session"), {
           headers: { Authorization: `Bearer ${localToken}` },
         });
         if (r.ok) {
@@ -59,7 +60,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      const r = await fetch("/api/auth/session", {
+      const r = await fetch(apiUrl("/api/auth/session"), {
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
 

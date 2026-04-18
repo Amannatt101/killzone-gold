@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { apiUrl } from "@/lib/apiBase";
 import { setStoredAuthToken } from "@/lib/authToken";
 
 export default function LoginPage() {
@@ -11,7 +12,7 @@ export default function LoginPage() {
     setStatus("loading");
     setMessage(null);
     try {
-      const res = await fetch("/api/auth/login", {
+      const res = await fetch(apiUrl("/api/auth/login"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
