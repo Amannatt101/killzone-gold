@@ -216,7 +216,7 @@ export function IntelligenceDashboard({
           <div className="v2-main">
             <div className="v2-scroll">
               <div className="v2-inner">
-                <Battlefield reasons={signal.reasons} />
+                <Battlefield reasons={signal.reasons} score={topbar.score} scoreTag={topbar.scoreTag} />
                 <MarketNarrative {...narrative} />
                 <ScoreHistory series={scoreSeries} shifts={scoreShifts} />
                 <Invalidation rows={invalidationRows} />

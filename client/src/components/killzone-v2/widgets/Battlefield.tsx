@@ -41,8 +41,12 @@ function forcesFromReasons(
 
 export function Battlefield({
   reasons,
+  score,
+  scoreTag,
 }: {
   reasons?: { factor: string; impact: string }[];
+  score?: number;
+  scoreTag?: string;
 }) {
   const { bull: BULL_FORCES, bear: BEAR_FORCES } = forcesFromReasons(reasons);
   const bullSum = BULL_FORCES.reduce((a, b) => a + b.weight, 0);
@@ -55,6 +59,9 @@ export function Battlefield({
   const leaningLabel =
     leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
   const magnitude = Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive";
+  const shownScore = Math.round(score ?? 50);
+  const shownTag = scoreTag ?? "NEUTRAL · LOW";
+  const scoreColor = shownScore >= 65 ? "var(--ok)" : shownScore <= 35 ? "var(--danger)" : "var(--warn)";
 
   return (
     <div className="w-card accent">
@@ -64,6 +71,51 @@ export function Battlefield({
       </div>
 
       <div className="bf-hero">
+        <div
+          style={{
+            marginBottom: 12,
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "10px 14px",
+            border: `1px solid ${scoreColor}66`,
+            borderRadius: 8,
+            background: `${scoreColor}1a`,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              letterSpacing: "0.14em",
+              color: "var(--text-3)",
+              textTransform: "uppercase",
+            }}
+          >
+            Score
+          </span>
+          <span
+            className="mono"
+            style={{
+              fontSize: 34,
+              lineHeight: 1,
+              fontWeight: 700,
+              color: scoreColor,
+            }}
+          >
+            {shownScore}
+          </span>
+          <span
+            style={{
+              fontSize: 16,
+              letterSpacing: "0.06em",
+              fontWeight: 600,
+              color: scoreColor,
+              textTransform: "uppercase",
+            }}
+          >
+            {shownTag}
+          </span>
+        </div>
         <div className="bf-hero-top">
           <div className="bf-hero-side bull">
             <div className="bf-hero-lbl">Supporting Gold</div>
