@@ -125,7 +125,9 @@ export function LiveMarketNarrativeCarousel({
     const onSelect = () => setIndex(api.selectedScrollSnap());
     onSelect();
     api.on("select", onSelect);
-    return () => api.off("select", onSelect);
+    return () => {
+      api.off("select", onSelect);
+    };
   }, [api]);
 
   useEffect(() => {
@@ -157,7 +159,6 @@ export function LiveMarketNarrativeCarousel({
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        <div className="lmn-build-badge mono">LIVE FEED v2</div>
         <Carousel
           setApi={setApi}
           opts={{ loop: true, align: "start" }}
@@ -166,75 +167,71 @@ export function LiveMarketNarrativeCarousel({
         >
           <CarouselContent className="ml-0">
             {displaySlides.map((slide) => {
-              const isFeedHeavySlide = slide.id === "risk";
-              const headlineLimit = isFeedHeavySlide ? 5 : 4;
-              const narrativeText = isFeedHeavySlide
-                ? (slide.text.split(". ").slice(0, 1).join(". ").trim() || slide.text)
-                : slide.text;
+              const primaryStory =
+                slide.headlines && slide.headlines.length > 0
+                  ? slide.headlines[0]
+                  : {
+                      title: slide.text,
+                      source: "Gold Intelligence",
+                      age: slide.freshness?.market ?? "now",
+                      url: undefined,
+                      imageUrl:
+                        "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80",
+                    };
               return (
                 <CarouselItem key={slide.id} className="pl-0">
                   <article className="lmn-card">
-                    <div className="lmn-main">
-                      <div className="lmn-copy">
-                        <div className="lmn-top">
-                          <div className="lmn-head">
-                            <div className="lmn-title">{slide.title}</div>
-                            <span className={`lmn-bias ${biasClass(slide.bias)}`}>{slide.bias}</span>
-                          </div>
-                          <div className="lmn-ts">{slide.updatedLabel}</div>
-                        </div>
-                        <div className="lmn-tags">
-                          <span className="tag-chip live">LIVE</span>
-                          {slide.impact && <span className="tag-chip">{slide.impact}</span>}
-                          {(slide.tags ?? []).slice(0, 1).map((t, idx) => (
-                            <span key={`${slide.id}-tag-${idx}`} className="tag-chip">{t}</span>
-                          ))}
-                        </div>
-                        <div className="lmn-freshness mono">
-                          Market {slide.freshness?.market ?? "n/a"} · News {slide.freshness?.news ?? "n/a"}
-                        </div>
-
-                        <div className="lmn-metrics">
-                          {slide.metrics.slice(0, 2).map((m) => (
-                            <div key={`${slide.id}-${m.label}`} className="lmn-metric">
-                              <span className="lbl">{m.label}</span>
-                              <span className="val mono">{m.value}</span>
-                            </div>
-                          ))}
-                        </div>
-
-                        <div className={`lmn-text ${isFeedHeavySlide ? "news-compact" : ""}`}>{narrativeText}</div>
-                        {slide.headlines && slide.headlines.length > 0 && (
-                          <div className={`lmn-stories ${isFeedHeavySlide ? "news-heavy" : ""}`}>
-                            {slide.headlines.slice(0, headlineLimit).map((h, idx) => (
-                              <a
-                                key={`${slide.id}-story-${idx}`}
-                                className="lmn-story"
-                                href={h.url || "#"}
-                                target={h.url ? "_blank" : undefined}
-                                rel={h.url ? "noreferrer noopener" : undefined}
-                                onClick={(e) => !h.url && e.preventDefault()}
-                              >
-                                <div className="lmn-story-copy">
-                                  <div className="lmn-story-meta">
-                                    <span>{h.source}</span>
-                                    <span className="sep">·</span>
-                                    <span>{h.age} ago</span>
-                                  </div>
-                                  <div className="lmn-story-title">{h.title}</div>
-                                </div>
-                                <div className="lmn-story-thumb">
-                                  <img
-                                    src={h.imageUrl || "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=400&q=80"}
-                                    alt={`${h.source} story`}
-                                    loading="lazy"
-                                    decoding="async"
-                                  />
-                                </div>
-                              </a>
+                    <div className="lmn-news-shell">
+                      <div className="lmn-top">
+                        <div className="lmn-head">
+                          <div className="lmn-title">{slide.title}</div>
+                          <div className="lmn-tags">
+                            <span className="tag-chip live">Live</span>
+                            {slide.impact && <span className="tag-chip">{slide.impact}</span>}
+                            {(slide.tags ?? []).slice(0, 1).map((t, idx) => (
+                              <span key={`${slide.id}-tag-${idx}`} className="tag-chip">
+                                {t}
+                              </span>
                             ))}
                           </div>
-                        )}
+                        </div>
+                        <div className="lmn-ts">{slide.updatedLabel}</div>
+                      </div>
+
+                      <div className="lmn-lede">{slide.text}</div>
+
+                      <div className="lmn-freshness mono">
+                        Market {slide.freshness?.market ?? "n/a"} · News {slide.freshness?.news ?? "n/a"}
+                      </div>
+
+                      <div className="lmn-stories">
+                        <a
+                          className="lmn-story lmn-story-primary"
+                          href={primaryStory.url || "#"}
+                          target={primaryStory.url ? "_blank" : undefined}
+                          rel={primaryStory.url ? "noreferrer noopener" : undefined}
+                          onClick={(e) => !primaryStory.url && e.preventDefault()}
+                        >
+                          <div className="lmn-story-copy">
+                            <div className="lmn-story-meta">
+                              <span className="src">{primaryStory.source}</span>
+                              <span className="sep">·</span>
+                              <span>{primaryStory.age} ago</span>
+                            </div>
+                            <div className="lmn-story-title">{primaryStory.title}</div>
+                          </div>
+                          <div className="lmn-story-thumb">
+                            <img
+                              src={
+                                primaryStory.imageUrl ||
+                                "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80"
+                              }
+                              alt={`${primaryStory.source} story`}
+                              loading="lazy"
+                              decoding="async"
+                            />
+                          </div>
+                        </a>
                       </div>
                     </div>
                   </article>
