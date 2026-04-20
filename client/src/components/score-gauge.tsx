@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo } from "react";
+import { formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 
 function getScoreColor(score: number): string {
   if (score >= 65) return "#5fad46"; // green/bullish
@@ -269,13 +270,11 @@ function LiveTimestamp({ lastFetched, dataStatus }: { lastFetched: string; dataS
   else if (diffSec < 3600) relative = `${Math.floor(diffSec / 60)}m ${diffSec % 60}s ago`;
   else relative = `${Math.floor(diffSec / 3600)}h ${Math.floor((diffSec % 3600) / 60)}m ago`;
 
-  const timeStr = fetchedDate.toLocaleTimeString("en-GB", {
+  const timeStr = `${formatGmtPlus1Time(fetchedDate, {
     hour: "2-digit",
     minute: "2-digit",
     second: "2-digit",
-    hour12: false,
-    timeZone: "UTC",
-  }) + " GMT";
+  })} ${GMT_PLUS_ONE_LABEL}`;
 
   const isLive = dataStatus === "live";
 

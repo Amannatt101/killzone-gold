@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus, Clock, Target } from "lucide-react";
+import { formatGmtPlus1Date, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 
 interface ScoreLogEntry {
   timestamp: string;
@@ -104,17 +105,13 @@ const signalColors: Record<string, { text: string; bg: string; border: string }>
 };
 
 function formatTime(iso: string): string {
-  return (
-    new Date(iso).toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "UTC",
-    }) + " GMT"
-  );
+  return `${formatGmtPlus1Time(iso, {
+    hour: "2-digit",
+    minute: "2-digit",
+  })} ${GMT_PLUS_ONE_LABEL}`;
 }
 function formatDate(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", timeZone: "UTC" });
+  return formatGmtPlus1Date(iso, { day: "2-digit", month: "short" });
 }
 function formatDuration(startIso: string): string {
   const diff = Date.now() - new Date(startIso).getTime();

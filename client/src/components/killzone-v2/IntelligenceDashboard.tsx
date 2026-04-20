@@ -37,6 +37,7 @@ export type IntelligenceDashboardProps = {
     title: string;
     body: ReactNode;
   };
+  scoreLastChangedIso?: string;
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -61,6 +62,7 @@ export function IntelligenceDashboard({
   regimeMetrics,
   narrative,
   positioning,
+  scoreLastChangedIso,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
@@ -216,7 +218,14 @@ export function IntelligenceDashboard({
           <div className="v2-main">
             <div className="v2-scroll">
               <div className="v2-inner">
-                <Battlefield reasons={signal.reasons} score={topbar.score} scoreTag={topbar.scoreTag} />
+                <Battlefield
+                  reasons={signal.reasons}
+                  score={topbar.score}
+                  scoreTag={topbar.scoreTag}
+                  generatedAtIso={signal.meta?.lastFetched}
+                  scoreLastChangedIso={scoreLastChangedIso}
+                  nextRefreshIso={nextRefreshIso}
+                />
                 <MarketNarrative {...narrative} />
                 <ScoreHistory series={scoreSeries} shifts={scoreShifts} />
                 <Invalidation rows={invalidationRows} />

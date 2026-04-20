@@ -4,6 +4,8 @@ import { Copy, Check, RefreshCw, TrendingUp, TrendingDown, Minus, Clock, Target,
 import bakedSignal from "@/data/signal-data.json";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 
+const HOURLY_REFRESH_MS = 60 * 60 * 1000;
+
 interface Reason {
   factor: string;
   status: string;
@@ -50,7 +52,7 @@ export default function SignalPage() {
 
   const { data: liveData, isLoading, refetch, isFetching } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: HOURLY_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });

@@ -1,5 +1,6 @@
 import type { ScoreResponse } from "@shared/schema";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { formatGmtPlus1Date, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 
 interface Driver {
   name: string;
@@ -168,18 +169,14 @@ export function SignalDrivers({
   const bearishDriver = bearish.length > 0 ? bearish[0] : null;
 
   const now = new Date();
-  const timeStr =
-    now.toLocaleTimeString("en-GB", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-      timeZone: "UTC",
-    }) + " GMT";
-  const dateStr = now.toLocaleDateString("en-GB", {
+  const timeStr = `${formatGmtPlus1Time(now, {
+    hour: "2-digit",
+    minute: "2-digit",
+  })} ${GMT_PLUS_ONE_LABEL}`;
+  const dateStr = formatGmtPlus1Date(now, {
     day: "2-digit",
     month: "short",
     year: "numeric",
-    timeZone: "UTC",
   });
 
   return (

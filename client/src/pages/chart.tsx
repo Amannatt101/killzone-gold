@@ -4,6 +4,9 @@ import { createChart, ColorType, CandlestickSeries, LineSeries, AreaSeries } fro
 import chartData from "@/data/chart-data.json";
 import bakedSignal from "@/data/signal-data.json";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { formatGmtPlus1Date, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+
+const HOURLY_REFRESH_MS = 60 * 60 * 1000;
 
 interface SignalData {
   gold: number;
@@ -39,7 +42,7 @@ export default function ChartPage() {
 
   const { data: liveSignal } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: HOURLY_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -188,9 +191,9 @@ export default function ChartPage() {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: "#E5E7EB", fontSize: 12, fontWeight: 700, fontFamily: "monospace" }}>XAUUSD ${safeFixed(signal?.gold)}</span>
                   <span style={{ color: "#4B5563", fontSize: 9, fontFamily: "monospace" }}>
-                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "UTC" })}
+                    {formatGmtPlus1Date(signal.meta?.lastFetched ?? Date.now(), { day: "2-digit", month: "short", year: "numeric" })}
                     {" "}
-                    {new Date(signal.meta?.lastFetched ?? Date.now()).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "UTC" })} GMT
+                    {formatGmtPlus1Time(signal.meta?.lastFetched ?? Date.now(), { hour: "2-digit", minute: "2-digit" })} {GMT_PLUS_ONE_LABEL}
                   </span>
                 </div>
                 <div style={{ color: "#9CA3AF", fontSize: 10, lineHeight: 1.5 }}>

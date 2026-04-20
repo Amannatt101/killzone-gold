@@ -391,7 +391,7 @@ export function getScoreLog(): ScoreLogEntry[] {
 // ─── Cache ───────────────────────────────────────────────────────
 let cachedLiveScore: LiveScoreData | null = null;
 let fetchInProgress = false;
-const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
 
 export function getCachedLiveScore(): LiveScoreData | null {
   return cachedLiveScore;
@@ -582,7 +582,7 @@ export function startAutoRefresh(): void {
   // Initial fetch
   fetchAndComputeLiveScore().catch(console.error);
 
-  // Refresh every 30 minutes
+  // Refresh every hour
   refreshTimer = setInterval(() => {
     fetchAndComputeLiveScore().catch(console.error);
   }, REFRESH_INTERVAL_MS);

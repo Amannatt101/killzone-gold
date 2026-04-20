@@ -1,10 +1,15 @@
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, type ReactNode } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState, type ReactNode } from "react";
 import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDashboard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
 import { scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
+import { apiRequest } from "@/lib/queryClient";
+import { formatGmtPlus1DateTime, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+import { RefreshCw } from "lucide-react";
+
+const HOURLY_REFRESH_MS = 60 * 60 * 1000;
 
 type ScoreApi = {
   regime: string;
@@ -51,16 +56,19 @@ function regimeChipFromString(regime: string): string {
 }
 
 export default function IntelligenceDashboardPage() {
+  const queryClient = useQueryClient();
+  const [refreshing, setRefreshing] = useState(false);
+
   const { data: liveSignal } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: HOURLY_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
 
   const { data: scoreApi } = useQuery<ScoreApi>({
     queryKey: ["/api/score"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: HOURLY_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -72,7 +80,7 @@ export default function IntelligenceDashboardPage() {
   });
   const { data: scoreLogApi } = useQuery<ScoreLogApi>({
     queryKey: ["/api/score-log"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: HOURLY_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -179,15 +187,12 @@ export default function IntelligenceDashboardPage() {
 
     const sub = `XAU/USD ${safeFixed(signal.gold)} · ${signal.tradeZone}. ${signal.continuation.slice(0, 220)}${signal.continuation.length > 220 ? "…" : ""}`;
 
-    const updatedTs =
-      new Date(signal.meta.lastFetched).toLocaleString("en-GB", {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: false,
-        timeZone: "UTC",
-      }) + " GMT";
+    const updatedTs = `${formatGmtPlus1DateTime(signal.meta.lastFetched, {
+      day: "2-digit",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    })} ${GMT_PLUS_ONE_LABEL}`;
 
     return {
       updatedTs,
@@ -303,7 +308,11 @@ export default function IntelligenceDashboardPage() {
 
   const topbar = useMemo(() => {
     const priceDisplay = `$${safeFixed(signal.gold)}`;
-    const liveLine = `LIVE · ${new Date(signal.meta.lastFetched).toISOString().slice(11, 19)} GMT`;
+    const liveLine = `LIVE · ${formatGmtPlus1Time(signal.meta.lastFetched, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    })} ${GMT_PLUS_ONE_LABEL}`;
     const entries = scoreLogApi?.entries;
     let chgDisplay = "—";
     let chgClass: "bull" | "bear" = "bear";
@@ -328,6 +337,37 @@ export default function IntelligenceDashboardPage() {
     };
   }, [signal, regimeLabel, scoreLogApi]);
 
+  const scoreLastChangedIso = useMemo(() => {
+    const entries = scoreLogApi?.entries;
+    if (!entries?.length) return signal.meta.lastFetched;
+    const current = entries[entries.length - 1]?.score;
+    if (typeof current !== "number") return signal.meta.lastFetched;
+
+    const epsilon = 0.05;
+    let startOfCurrentRun = entries.length - 1;
+    for (let i = entries.length - 2; i >= 0; i--) {
+      const v = entries[i]?.score;
+      if (typeof v !== "number") continue;
+      if (Math.abs(v - current) <= epsilon) {
+        startOfCurrentRun = i;
+      } else {
+        break;
+      }
+    }
+    return entries[startOfCurrentRun]?.timestamp ?? signal.meta.lastFetched;
+  }, [scoreLogApi, signal.meta.lastFetched]);
+
+  async function refreshAllData(): Promise<void> {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await apiRequest("POST", "/api/refresh");
+      await queryClient.invalidateQueries();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   return (
     <IntelligenceDashboard
       signal={signal}
@@ -340,8 +380,22 @@ export default function IntelligenceDashboardPage() {
       regimeMetrics={regimeMetrics}
       narrative={narrative}
       positioning={positioning}
+      scoreLastChangedIso={scoreLastChangedIso}
       topbar={topbar}
-      topbarExtra={<LogoutButton />}
+      topbarExtra={
+        <>
+          <button
+            type="button"
+            onClick={refreshAllData}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1 rounded border border-[var(--line-1)] bg-[var(--bg-2)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-2)] hover:bg-[var(--bg-3)] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
+            {refreshing ? "Syncing..." : "Refresh"}
+          </button>
+          <LogoutButton />
+        </>
+      }
     />
   );
 }

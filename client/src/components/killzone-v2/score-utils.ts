@@ -1,3 +1,5 @@
+import { formatGmtPlus1DateTime, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+
 export function scoreLabel(s: number): string {
   if (s >= 75) return "STRONG CONVICTION";
   if (s >= 65) return "HIGH";
@@ -8,15 +10,12 @@ export function scoreLabel(s: number): string {
 
 export function formatUtcShort(iso: string): string {
   try {
-    const d = new Date(iso);
-    return d.toLocaleString("en-GB", {
+    return `${formatGmtPlus1DateTime(iso, {
       day: "2-digit",
       month: "short",
       hour: "2-digit",
       minute: "2-digit",
-      hour12: false,
-      timeZone: "UTC",
-    }) + " GMT";
+    })} ${GMT_PLUS_ONE_LABEL}`;
   } catch {
     return "—";
   }

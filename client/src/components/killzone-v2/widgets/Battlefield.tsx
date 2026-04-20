@@ -1,3 +1,5 @@
+import { formatGmtPlus1DateTime, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+
 type Force = { name: string; weight: number; strong?: boolean };
 
 const DEFAULT_BULL: Force[] = [
@@ -43,10 +45,16 @@ export function Battlefield({
   reasons,
   score,
   scoreTag,
+  generatedAtIso,
+  scoreLastChangedIso,
+  nextRefreshIso,
 }: {
   reasons?: { factor: string; impact: string }[];
   score?: number;
   scoreTag?: string;
+  generatedAtIso?: string;
+  scoreLastChangedIso?: string;
+  nextRefreshIso?: string | null;
 }) {
   const { bull: BULL_FORCES, bear: BEAR_FORCES } = forcesFromReasons(reasons);
   const bullSum = BULL_FORCES.reduce((a, b) => a + b.weight, 0);
@@ -60,8 +68,43 @@ export function Battlefield({
     leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
   const magnitude = Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive";
   const shownScore = Math.round(score ?? 50);
+  const shownScorePrecise = Number((score ?? 50).toFixed(1));
   const shownTag = scoreTag ?? "NEUTRAL · LOW";
   const scoreColor = shownScore >= 65 ? "var(--ok)" : shownScore <= 35 ? "var(--danger)" : "var(--warn)";
+  const generatedAt = generatedAtIso
+    ? `${formatGmtPlus1DateTime(generatedAtIso, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })} ${GMT_PLUS_ONE_LABEL}`
+    : "—";
+  const generatedAtCompact = generatedAtIso
+    ? `${formatGmtPlus1DateTime(generatedAtIso, {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })} ${GMT_PLUS_ONE_LABEL}`
+    : "—";
+  const nextRefreshAt = nextRefreshIso
+    ? `${formatGmtPlus1DateTime(nextRefreshIso, {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      })} ${GMT_PLUS_ONE_LABEL}`
+    : "—";
+  const lastChangedAt = scoreLastChangedIso
+    ? `${formatGmtPlus1DateTime(scoreLastChangedIso, {
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+      })} ${GMT_PLUS_ONE_LABEL}`
+    : "—";
 
   return (
     <div className="w-card accent">
@@ -104,7 +147,22 @@ export function Battlefield({
               color: scoreColor,
             }}
           >
-            {shownScore}
+            {shownScorePrecise}
+          </span>
+          <span
+            className="mono"
+            style={{
+              fontSize: 10,
+              color: "var(--text-2)",
+              letterSpacing: "0.04em",
+              textTransform: "uppercase",
+              padding: "3px 6px",
+              borderRadius: 4,
+              border: "1px solid var(--line-1)",
+              background: "var(--bg-2)",
+            }}
+          >
+            Generated {generatedAtCompact}
           </span>
           <span
             style={{
@@ -117,6 +175,25 @@ export function Battlefield({
           >
             {shownTag}
           </span>
+          <div
+            style={{
+              flexBasis: "100%",
+              borderTop: "1px solid var(--line-1)",
+              marginTop: 4,
+              paddingTop: 6,
+              display: "flex",
+              flexWrap: "wrap",
+              gap: "6px 14px",
+              fontSize: 10,
+              letterSpacing: "0.04em",
+              color: "var(--text-2)",
+              fontFamily: "Geist Mono, monospace",
+            }}
+          >
+            <span>LAST CHANGED · {lastChangedAt}</span>
+            <span>GENERATED · {generatedAt}</span>
+            <span>NEXT REFRESH · {nextRefreshAt}</span>
+          </div>
         </div>
         <div className="bf-hero-top">
           <div className="bf-hero-side bull">

@@ -3,7 +3,7 @@ const SESSIONS = [
     name: "Asia",
     start: 0,
     end: 8,
-    tz: "00:00 – 08:00 GMT",
+    tz: "01:00 – 09:00 GMT+1",
     tone: "low" as const,
     toneLbl: "Low Volatility",
     body: (
@@ -18,7 +18,7 @@ const SESSIONS = [
     name: "London",
     start: 7,
     end: 15,
-    tz: "07:00 – 15:00 GMT",
+    tz: "08:00 – 16:00 GMT+1",
     tone: "high" as const,
     toneLbl: "Primary Killzone",
     body: (
@@ -33,13 +33,13 @@ const SESSIONS = [
     name: "New York",
     start: 13,
     end: 21,
-    tz: "13:00 – 21:00 GMT",
+    tz: "14:00 – 22:00 GMT+1",
     tone: "med" as const,
     toneLbl: "Secondary Killzone",
     body: (
       <>
         Overlap hour drives <span className="em">two-way flow</span>. DXY-correlated — watch 14:00
-        GMT cross-market reactions around U.S. data.
+        GMT+1 cross-market reactions around U.S. data.
       </>
     ),
     stat: "Avg range · 0.61%",
@@ -77,7 +77,7 @@ export function KillzoneTiming({
     <div className="w-card accent">
       <div className="w-head">
         <div className="title">Killzone Timing</div>
-        <div className="meta">SESSION EXPECTATIONS · GMT</div>
+        <div className="meta">SESSION EXPECTATIONS · GMT+1</div>
       </div>
       <div className="kz-sessions">
         {SESSIONS.map((s, i) => {
