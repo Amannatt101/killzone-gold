@@ -1376,6 +1376,7 @@
     radial-gradient(ellipse 70% 120% at 0% 50%, rgba(91,200,138,0.05) 0%, transparent 55%),
     radial-gradient(ellipse 70% 120% at 100% 50%, rgba(239,94,94,0.05) 0%, transparent 55%);
   border-bottom: 1px solid var(--line-1);
+  --bf-motion: 0.5;
 }
 
 .kz-v2 .bf-hero-top {
@@ -1518,6 +1519,69 @@
   text-align: center;
 }
 .kz-v2 .bf-hero-verdict-copy .em { color: var(--gold-bright); font-weight: 500; }
+
+@keyframes bfPulseGlow {
+  0% { box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+  50% { box-shadow: 0 0 calc(16px * var(--bf-motion)) rgba(232, 184, 90, 0.18); }
+  100% { box-shadow: 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+@keyframes bfBarBreathe {
+  0% { transform: scaleY(1); filter: brightness(1); }
+  50% { transform: scaleY(calc(1 + (0.03 * var(--bf-motion)))); filter: brightness(calc(1 + (0.05 * var(--bf-motion)))); }
+  100% { transform: scaleY(1); filter: brightness(1); }
+}
+
+@keyframes bfMarkerPulse {
+  0% { opacity: 0.8; transform: translateX(-1px) scale(1); }
+  50% { opacity: 1; transform: translateX(-1px) scale(calc(1 + (0.08 * var(--bf-motion)))); }
+  100% { opacity: 0.8; transform: translateX(-1px) scale(1); }
+}
+
+@keyframes bfTickerShimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.kz-v2 .bf-live-verdict {
+  animation: bfPulseGlow calc(2800ms - (1200ms * var(--bf-motion))) ease-in-out infinite;
+}
+
+.kz-v2 .bf-live-fill {
+  transform-origin: center;
+  animation: bfBarBreathe calc(3400ms - (1400ms * var(--bf-motion))) ease-in-out infinite;
+}
+
+.kz-v2 .bf-live-marker {
+  animation: bfMarkerPulse calc(2200ms - (900ms * var(--bf-motion))) ease-in-out infinite;
+}
+
+.kz-v2 .bf-live-dot {
+  animation: bfMarkerPulse calc(1700ms - (700ms * var(--bf-motion))) ease-in-out infinite;
+}
+
+.kz-v2 .bf-live-copy {
+  background-image: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(232, 184, 90, calc(0.06 * var(--bf-motion))) 50%,
+    transparent 100%
+  );
+  background-size: 220% 100%;
+  animation: bfTickerShimmer calc(4200ms - (1700ms * var(--bf-motion))) linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kz-v2 .bf-live-verdict,
+  .kz-v2 .bf-live-fill,
+  .kz-v2 .bf-live-marker,
+  .kz-v2 .bf-live-dot,
+  .kz-v2 .bf-live-copy {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+}
 
 /* kill the old bottom-attached dominance block (no longer rendered, but just in case) */
 .kz-v2 .bf-dominance { display: none; }

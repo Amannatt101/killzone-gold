@@ -21,11 +21,14 @@ export function Battlefield({
   dominance?: DominanceResult;
 }) {
   const model = dominance ?? buildDominanceFromComponents({ score });
-  const bullPct = model.bullPct;
-  const bearPct = model.bearPct;
+  const totalFlow = Math.max(1, model.bullSum + model.bearSum);
+  const bullPctExact = (model.bullSum / totalFlow) * 100;
+  const bearPctExact = 100 - bullPctExact;
+  const bullPct = Number(bullPctExact.toFixed(1));
+  const bearPct = Number(bearPctExact.toFixed(1));
   const bullSum = model.bullSum;
   const bearSum = model.bearSum;
-  const edge = model.edge;
+  const edge = Number((bullPctExact - bearPctExact).toFixed(1));
   const leaning = model.leaning;
   const magnitude = model.magnitude;
   const BULL_FORCES: DominanceForce[] = model.bullForces;
@@ -33,9 +36,10 @@ export function Battlefield({
   const leaningLabel =
     leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
   const shownScore = Math.round(score ?? 50);
-  const shownScorePrecise = Number((score ?? 50).toFixed(1));
+  const shownScorePrecise = Number((score ?? 50).toFixed(2));
   const shownTag = scoreTag ?? "NEUTRAL · LOW";
   const scoreColor = shownScore >= 65 ? "var(--ok)" : shownScore <= 35 ? "var(--danger)" : "var(--warn)";
+  const motionStrength = Math.max(0.28, Math.min(1, 1 - Math.min(Math.abs(edge), 30) / 30));
   const generatedAt = generatedAtIso
     ? `${formatGmtPlus1DateTime(generatedAtIso, {
         day: "2-digit",
@@ -78,8 +82,9 @@ export function Battlefield({
         <div className="meta">WEIGHTED BY INSTITUTIONAL FLOW</div>
       </div>
 
-      <div className="bf-hero">
+      <div className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength }}>
         <div
+          className="bf-score-chip"
           style={{
             marginBottom: 12,
             display: "inline-flex",
@@ -93,7 +98,7 @@ export function Battlefield({
             maxWidth: "100%",
           }}
         >
-          {/* <span
+          <span
             style={{
               fontSize: 11,
               letterSpacing: "0.14em",
@@ -102,8 +107,8 @@ export function Battlefield({
             }}
           >
             Score
-          </span> */}
-          {/* <span
+          </span>
+          <span
             className="mono"
             style={{
               fontSize: 30,
@@ -112,8 +117,8 @@ export function Battlefield({
               color: scoreColor,
             }}
           >
-            {shownScorePrecise}
-          </span> */}
+            {shownScorePrecise.toFixed(2)}
+          </span>
           <span
             className="mono"
             style={{
@@ -163,9 +168,9 @@ export function Battlefield({
         <div className="bf-hero-top">
           <div className="bf-hero-side bull">
             <div className="bf-hero-lbl">Supporting Gold</div>
-            <div className="bf-hero-pct mono">{bullPct}%</div>
+            <div className="bf-hero-pct mono">{bullPct.toFixed(1)}%</div>
           </div>
-          <div className={`bf-hero-verdict ${leaning}`}>
+          <div className={`bf-hero-verdict ${leaning} bf-live-verdict`}>
             <div className="bf-hero-verdict-arrow">
               {leaning === "bull" && (
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
@@ -199,31 +204,31 @@ export function Battlefield({
               <div className="bf-hero-verdict-lbl">{leaningLabel}</div>
               <div className="bf-hero-verdict-edge mono">
                 {edge > 0 ? "+" : ""}
-                {edge} pt edge · {magnitude}
+                {edge.toFixed(1)} pt edge · {magnitude}
               </div>
             </div>
           </div>
           <div className="bf-hero-side bear">
             <div className="bf-hero-lbl">Opposing Gold</div>
-            <div className="bf-hero-pct mono">{bearPct}%</div>
+            <div className="bf-hero-pct mono">{bearPct.toFixed(1)}%</div>
           </div>
         </div>
 
         <div className="bf-hero-bar">
-          <div className="bull" style={{ width: `${bullPct}%` }}>
-            <span className="bf-hero-bar-lbl">{bullPct}%</span>
+          <div className="bull bf-live-fill" style={{ width: `${bullPct}%` }}>
+            <span className="bf-hero-bar-lbl">{bullPct.toFixed(1)}%</span>
           </div>
-          <div className="bear" style={{ width: `${bearPct}%` }}>
-            <span className="bf-hero-bar-lbl">{bearPct}%</span>
+          <div className="bear bf-live-fill" style={{ width: `${bearPct}%` }}>
+            <span className="bf-hero-bar-lbl">{bearPct.toFixed(1)}%</span>
           </div>
           <div className="bf-hero-bar-center" />
-          <div className="bf-hero-bar-marker" style={{ left: `${bullPct}%` }}>
-            <div className="bf-hero-bar-marker-dot" />
+          <div className="bf-hero-bar-marker bf-live-marker" style={{ left: `${bullPct}%` }}>
+            <div className="bf-hero-bar-marker-dot bf-live-dot" />
           </div>
         </div>
 
-        <div className="bf-hero-verdict-copy">
-          Bulls hold a <span className="em">{edge}-point edge</span> — a{" "}
+        <div className="bf-hero-verdict-copy bf-live-copy">
+          Bulls hold a <span className="em">{edge.toFixed(1)}-point edge</span> — a{" "}
           <span className="em">{magnitude.toLowerCase()} lean</span>{" "}
           {leaning === "bull"
             ? "toward support"
