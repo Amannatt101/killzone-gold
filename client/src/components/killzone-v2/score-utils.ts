@@ -123,8 +123,8 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
       edge,
       leaning: edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral",
       magnitude: Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive",
-      bullSum: Math.round(fallbackBull),
-      bearSum: Math.round(fallbackBear),
+      bullSum: fallbackBull,
+      bearSum: fallbackBear,
       bullForces: DEFAULT_BULL_FORCES,
       bearForces: DEFAULT_BEAR_FORCES,
     };
@@ -137,7 +137,7 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
   const bearSum = bearRows.reduce((sum, r) => sum + r.abs, 0);
   const total = bullSum + bearSum || 1;
 
-  const bullPct = Math.round((bullSum / total) * 100);
+  const bullPct = (bullSum / total) * 100;
   const bearPct = 100 - bullPct;
   const edge = bullPct - bearPct;
   const leaning: "bull" | "bear" | "neutral" = edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral";
@@ -146,12 +146,12 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
 
   const bullForces = bullRows.slice(0, 4).map((r, i) => ({
     name: r.name,
-    weight: Math.round(r.abs),
+    weight: Number(r.abs.toFixed(3)),
     strong: i === 0,
   }));
   const bearForces = bearRows.slice(0, 4).map((r, i) => ({
     name: r.name,
-    weight: Math.round(r.abs),
+    weight: Number(r.abs.toFixed(3)),
     strong: i === 0,
   }));
 
@@ -161,8 +161,8 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
     edge,
     leaning,
     magnitude,
-    bullSum: Math.round(bullSum),
-    bearSum: Math.round(bearSum),
+    bullSum,
+    bearSum,
     bullForces: bullForces.length ? bullForces : DEFAULT_BULL_FORCES,
     bearForces: bearForces.length ? bearForces : DEFAULT_BEAR_FORCES,
   };
