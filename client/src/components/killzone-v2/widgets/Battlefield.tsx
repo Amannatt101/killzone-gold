@@ -93,7 +93,7 @@ export function Battlefield({
             maxWidth: "100%",
           }}
         >
-          <span
+          {/* <span
             style={{
               fontSize: 11,
               letterSpacing: "0.14em",
@@ -102,8 +102,8 @@ export function Battlefield({
             }}
           >
             Score
-          </span>
-          <span
+          </span> */}
+          {/* <span
             className="mono"
             style={{
               fontSize: 30,
@@ -113,7 +113,7 @@ export function Battlefield({
             }}
           >
             {shownScorePrecise}
-          </span>
+          </span> */}
           <span
             className="mono"
             style={{
