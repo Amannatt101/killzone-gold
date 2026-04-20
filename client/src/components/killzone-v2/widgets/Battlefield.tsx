@@ -1,72 +1,37 @@
 import { formatGmtPlus1DateTime, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
-
-type Force = { name: string; weight: number; strong?: boolean };
-
-const DEFAULT_BULL: Force[] = [
-  { name: "Geopolitical Tension", weight: 28, strong: true },
-  { name: "Central Bank Demand", weight: 18 },
-  { name: "ETF Flows (WoW)", weight: 9 },
-  { name: "Dollar Stagnation", weight: 7 },
-];
-const DEFAULT_BEAR: Force[] = [
-  { name: "Real Yields Rising", weight: 22, strong: true },
-  { name: "Risk-On Sentiment", weight: 9 },
-  { name: "Inflation Cooling", weight: 5 },
-  { name: "Momentum Fading", weight: 2 },
-];
-
-function forcesFromReasons(
-  reasons: { factor: string; impact: string }[] | undefined,
-): { bull: Force[]; bear: Force[] } {
-  if (!reasons?.length) return { bull: DEFAULT_BULL, bear: DEFAULT_BEAR };
-  const bullish = reasons.filter((r) => r.impact === "bullish");
-  const bearish = reasons.filter((r) => r.impact === "bearish");
-  if (!bullish.length && !bearish.length) return { bull: DEFAULT_BULL, bear: DEFAULT_BEAR };
-  const bull: Force[] =
-    bullish.length > 0
-      ? bullish.map((r, i) => ({
-          name: r.factor,
-          weight: Math.max(6, 26 - i * 5),
-          strong: i === 0,
-        }))
-      : DEFAULT_BULL;
-  const bear: Force[] =
-    bearish.length > 0
-      ? bearish.map((r, i) => ({
-          name: r.factor,
-          weight: Math.max(4, 24 - i * 5),
-          strong: i === 0,
-        }))
-      : DEFAULT_BEAR;
-  return { bull, bear };
-}
+import {
+  buildDominanceFromComponents,
+  type DominanceForce,
+  type DominanceResult,
+} from "../score-utils";
 
 export function Battlefield({
-  reasons,
   score,
   scoreTag,
   generatedAtIso,
   scoreLastChangedIso,
   nextRefreshIso,
+  dominance,
 }: {
-  reasons?: { factor: string; impact: string }[];
   score?: number;
   scoreTag?: string;
   generatedAtIso?: string;
   scoreLastChangedIso?: string;
   nextRefreshIso?: string | null;
+  dominance?: DominanceResult;
 }) {
-  const { bull: BULL_FORCES, bear: BEAR_FORCES } = forcesFromReasons(reasons);
-  const bullSum = BULL_FORCES.reduce((a, b) => a + b.weight, 0);
-  const bearSum = BEAR_FORCES.reduce((a, b) => a + b.weight, 0);
-  const total = bullSum + bearSum;
-  const bullPct = total ? Math.round((bullSum / total) * 100) : 50;
-  const bearPct = 100 - bullPct;
-  const edge = bullPct - bearPct;
-  const leaning = edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral";
+  const model = dominance ?? buildDominanceFromComponents({ score });
+  const bullPct = model.bullPct;
+  const bearPct = model.bearPct;
+  const bullSum = model.bullSum;
+  const bearSum = model.bearSum;
+  const edge = model.edge;
+  const leaning = model.leaning;
+  const magnitude = model.magnitude;
+  const BULL_FORCES: DominanceForce[] = model.bullForces;
+  const BEAR_FORCES: DominanceForce[] = model.bearForces;
   const leaningLabel =
     leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
-  const magnitude = Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive";
   const shownScore = Math.round(score ?? 50);
   const shownScorePrecise = Number((score ?? 50).toFixed(1));
   const shownTag = scoreTag ?? "NEUTRAL · LOW";

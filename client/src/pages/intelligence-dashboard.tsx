@@ -3,19 +3,24 @@ import { useMemo, useState, type ReactNode } from "react";
 import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDashboard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
-import { scoreLabel } from "@/components/killzone-v2/score-utils";
+import { buildDominanceFromComponents, scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
 import { apiRequest } from "@/lib/queryClient";
+import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
 import { formatGmtPlus1DateTime, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 import { RefreshCw } from "lucide-react";
-
-const HOURLY_REFRESH_MS = 60 * 60 * 1000;
 
 type ScoreApi = {
   regime: string;
   compositeScore?: number;
   lastFetched?: string;
   nextRefresh?: string | null;
+  components?: {
+    name: string;
+    score: number;
+    weight: number;
+    contribution: number;
+  }[];
   current?: {
     realYield?: number;
     vix?: number;
@@ -61,14 +66,14 @@ export default function IntelligenceDashboardPage() {
 
   const { data: liveSignal } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: HOURLY_REFRESH_MS,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
 
   const { data: scoreApi } = useQuery<ScoreApi>({
     queryKey: ["/api/score"],
-    refetchInterval: HOURLY_REFRESH_MS,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -80,7 +85,7 @@ export default function IntelligenceDashboardPage() {
   });
   const { data: scoreLogApi } = useQuery<ScoreLogApi>({
     queryKey: ["/api/score-log"],
-    refetchInterval: HOURLY_REFRESH_MS,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -337,6 +342,15 @@ export default function IntelligenceDashboardPage() {
     };
   }, [signal, regimeLabel, scoreLogApi]);
 
+  const dominance = useMemo(
+    () =>
+      buildDominanceFromComponents({
+        score: signal.score,
+        components: scoreApi?.components,
+      }),
+    [signal.score, scoreApi?.components],
+  );
+
   const scoreLastChangedIso = useMemo(() => {
     const entries = scoreLogApi?.entries;
     if (!entries?.length) return signal.meta.lastFetched;
@@ -381,6 +395,7 @@ export default function IntelligenceDashboardPage() {
       narrative={narrative}
       positioning={positioning}
       scoreLastChangedIso={scoreLastChangedIso}
+      dominance={dominance}
       topbar={topbar}
       topbarExtra={
         <>

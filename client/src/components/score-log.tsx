@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useState, useEffect } from "react";
 import { TrendingUp, TrendingDown, Minus, Clock, Target } from "lucide-react";
+import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
 import { formatGmtPlus1Date, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 
 interface ScoreLogEntry {
@@ -173,7 +174,7 @@ export function ScoreLog() {
   const [now, setNow] = useState(Date.now());
   const { data, isLoading } = useQuery<ScoreLogResponse>({
     queryKey: ["/api/score-log"],
-    refetchInterval: 30 * 60 * 1000,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
   });
 

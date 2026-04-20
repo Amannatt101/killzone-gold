@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TWEAK_DEFAULTS_V2, V2_ACCENTS, type AccentKey } from "./accent";
-import { formatNextRefresh } from "./score-utils";
+import { formatNextRefresh, type DominanceResult } from "./score-utils";
 import { Battlefield } from "./widgets/Battlefield";
 import { Invalidation } from "./widgets/Invalidation";
 import { KillzoneTiming } from "./widgets/KillzoneTiming";
@@ -38,6 +38,7 @@ export type IntelligenceDashboardProps = {
     body: ReactNode;
   };
   scoreLastChangedIso?: string;
+  dominance?: DominanceResult;
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -63,6 +64,7 @@ export function IntelligenceDashboard({
   narrative,
   positioning,
   scoreLastChangedIso,
+  dominance,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
@@ -219,12 +221,12 @@ export function IntelligenceDashboard({
             <div className="v2-scroll">
               <div className="v2-inner">
                 <Battlefield
-                  reasons={signal.reasons}
                   score={topbar.score}
                   scoreTag={topbar.scoreTag}
                   generatedAtIso={signal.meta?.lastFetched}
                   scoreLastChangedIso={scoreLastChangedIso}
                   nextRefreshIso={nextRefreshIso}
+                  dominance={dominance}
                 />
                 <MarketNarrative {...narrative} />
                 <ScoreHistory series={scoreSeries} shifts={scoreShifts} />

@@ -36,3 +36,134 @@ export function formatNextRefresh(iso: string | null | undefined): string {
     return "—";
   }
 }
+
+export type DominanceInput = {
+  score?: number;
+  components?: {
+    name: string;
+    score: number;
+    weight: number;
+    contribution?: number;
+  }[];
+};
+
+export type DominanceForce = {
+  name: string;
+  weight: number;
+  strong?: boolean;
+};
+
+export type DominanceResult = {
+  bullPct: number;
+  bearPct: number;
+  edge: number;
+  leaning: "bull" | "bear" | "neutral";
+  magnitude: "Narrow" | "Moderate" | "Decisive";
+  bullSum: number;
+  bearSum: number;
+  bullForces: DominanceForce[];
+  bearForces: DominanceForce[];
+};
+
+const DEFAULT_BULL_FORCES: DominanceForce[] = [
+  { name: "Geopolitical Tension", weight: 28, strong: true },
+  { name: "Central Bank Demand", weight: 18 },
+  { name: "ETF Flows (WoW)", weight: 9 },
+  { name: "Dollar Stagnation", weight: 7 },
+];
+
+const DEFAULT_BEAR_FORCES: DominanceForce[] = [
+  { name: "Real Yields Rising", weight: 22, strong: true },
+  { name: "Risk-On Sentiment", weight: 9 },
+  { name: "Inflation Cooling", weight: 5 },
+  { name: "Momentum Fading", weight: 2 },
+];
+
+function clamp(n: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, n));
+}
+
+function componentSignedWeight(score: number, baseWeight: number): number {
+  const neutralCentered = (score - 50) / 50; // -1 .. +1
+  const deadZone = 0.06; // neutral buffer to reduce flapping
+  const adjusted = Math.abs(neutralCentered) < deadZone ? 0 : neutralCentered;
+  const scaled = clamp(adjusted * baseWeight, -baseWeight, baseWeight);
+  // Clamp extremes per refresh cycle to avoid sharp spikes from one component
+  return clamp(scaled, -baseWeight * 0.85, baseWeight * 0.85);
+}
+
+function normalizeComponentName(name: string): string {
+  return name.replace(/\s+/g, " ").trim();
+}
+
+export function buildDominanceFromComponents(input: DominanceInput): DominanceResult {
+  const rows = input.components
+    ?.filter((c) => Number.isFinite(c?.score) && Number.isFinite(c?.weight))
+    .map((c) => {
+      const weight = Math.max(0.5, Number(c.weight));
+      const signed = componentSignedWeight(Number(c.score), weight);
+      return {
+        name: normalizeComponentName(c.name),
+        signed,
+        abs: Math.abs(signed),
+      };
+    })
+    .filter((c) => c.abs > 0);
+
+  if (!rows?.length) {
+    const fallbackBull = Math.max(0, (input.score ?? 50) - 20);
+    const fallbackBear = Math.max(0, 80 - (input.score ?? 50));
+    const base = fallbackBull + fallbackBear || 1;
+    const bullPct = Math.round((fallbackBull / base) * 100);
+    const bearPct = 100 - bullPct;
+    const edge = bullPct - bearPct;
+    return {
+      bullPct,
+      bearPct,
+      edge,
+      leaning: edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral",
+      magnitude: Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive",
+      bullSum: Math.round(fallbackBull),
+      bearSum: Math.round(fallbackBear),
+      bullForces: DEFAULT_BULL_FORCES,
+      bearForces: DEFAULT_BEAR_FORCES,
+    };
+  }
+
+  const bullRows = rows.filter((r) => r.signed > 0).sort((a, b) => b.abs - a.abs);
+  const bearRows = rows.filter((r) => r.signed < 0).sort((a, b) => b.abs - a.abs);
+
+  const bullSum = bullRows.reduce((sum, r) => sum + r.abs, 0);
+  const bearSum = bearRows.reduce((sum, r) => sum + r.abs, 0);
+  const total = bullSum + bearSum || 1;
+
+  const bullPct = Math.round((bullSum / total) * 100);
+  const bearPct = 100 - bullPct;
+  const edge = bullPct - bearPct;
+  const leaning: "bull" | "bear" | "neutral" = edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral";
+  const magnitude: "Narrow" | "Moderate" | "Decisive" =
+    Math.abs(edge) < 6 ? "Narrow" : Math.abs(edge) < 18 ? "Moderate" : "Decisive";
+
+  const bullForces = bullRows.slice(0, 4).map((r, i) => ({
+    name: r.name,
+    weight: Math.round(r.abs),
+    strong: i === 0,
+  }));
+  const bearForces = bearRows.slice(0, 4).map((r, i) => ({
+    name: r.name,
+    weight: Math.round(r.abs),
+    strong: i === 0,
+  }));
+
+  return {
+    bullPct,
+    bearPct,
+    edge,
+    leaning,
+    magnitude,
+    bullSum: Math.round(bullSum),
+    bearSum: Math.round(bearSum),
+    bullForces: bullForces.length ? bullForces : DEFAULT_BULL_FORCES,
+    bearForces: bearForces.length ? bearForces : DEFAULT_BEAR_FORCES,
+  };
+}

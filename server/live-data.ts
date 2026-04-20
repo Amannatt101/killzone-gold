@@ -391,7 +391,7 @@ export function getScoreLog(): ScoreLogEntry[] {
 // ─── Cache ───────────────────────────────────────────────────────
 let cachedLiveScore: LiveScoreData | null = null;
 let fetchInProgress = false;
-const REFRESH_INTERVAL_MS = 60 * 60 * 1000; // 1 hour
+const REFRESH_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
 
 export function getCachedLiveScore(): LiveScoreData | null {
   return cachedLiveScore;
