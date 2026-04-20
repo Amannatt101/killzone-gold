@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TWEAK_DEFAULTS_V2, V2_ACCENTS, type AccentKey } from "./accent";
-import { formatNextRefresh } from "./score-utils";
+import { formatNextRefresh, type DominanceResult } from "./score-utils";
 import { Battlefield } from "./widgets/Battlefield";
 import { Invalidation } from "./widgets/Invalidation";
 import { KillzoneTiming } from "./widgets/KillzoneTiming";
-import { MarketNarrative } from "./widgets/MarketNarrative";
+import { LiveMarketNarrativeCarousel, type MarketNarrativeSlide } from "./widgets/LiveMarketNarrativeCarousel";
 import { MarketRegime } from "./widgets/MarketRegime";
 import { PositioningBias } from "./widgets/PositioningBias";
 import { ScoreHistory } from "./widgets/ScoreHistory";
@@ -24,20 +24,13 @@ export type IntelligenceDashboardProps = {
   }[];
   sessionStats?: Record<string, string>;
   regimeMetrics?: { label: string; value: string; sub: string }[];
-  narrative: {
-    updatedTs: string;
-    statement: ReactNode;
-    sub: string;
-    primaryTitle: string;
-    primaryDesc: string;
-    opposingTitle: string;
-    opposingDesc: string;
-  };
+  narrativeSlides?: MarketNarrativeSlide[];
   positioning: {
     title: string;
     body: ReactNode;
   };
   scoreLastChangedIso?: string;
+  dominance?: DominanceResult;
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -60,9 +53,10 @@ export function IntelligenceDashboard({
   invalidationRows,
   sessionStats,
   regimeMetrics,
-  narrative,
+  narrativeSlides,
   positioning,
   scoreLastChangedIso,
+  dominance,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
@@ -219,14 +213,10 @@ export function IntelligenceDashboard({
             <div className="v2-scroll">
               <div className="v2-inner">
                 <Battlefield
-                  reasons={signal.reasons}
                   score={topbar.score}
-                  scoreTag={topbar.scoreTag}
-                  generatedAtIso={signal.meta?.lastFetched}
-                  scoreLastChangedIso={scoreLastChangedIso}
-                  nextRefreshIso={nextRefreshIso}
+                  dominance={dominance}
                 />
-                <MarketNarrative {...narrative} />
+                <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
                 <ScoreHistory series={scoreSeries} shifts={scoreShifts} />
                 <Invalidation rows={invalidationRows} />
               </div>

@@ -10,6 +10,7 @@ import { LiveStatusBar } from "@/components/live-status-bar";
 import { ScoreLog } from "@/components/score-log";
 import { SignalDrivers } from "@/components/signal-drivers";
 import { BasisTracker } from "@/components/basis-tracker";
+import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
 import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
@@ -19,7 +20,7 @@ export default function Dashboard() {
 
   const { data: scoreData, isLoading: scoreLoading } = useQuery<ScoreResponse>({
     queryKey: ["/api/score"],
-    refetchInterval: 30 * 60 * 1000, // Re-poll every 30 min to stay in sync
+    refetchInterval: REACTIVE_REFRESH_MS, // High-reactivity polling cadence
     staleTime: 5 * 60 * 1000,
   });
 

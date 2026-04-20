@@ -4,9 +4,8 @@ import { createChart, ColorType, CandlestickSeries, LineSeries, AreaSeries } fro
 import chartData from "@/data/chart-data.json";
 import bakedSignal from "@/data/signal-data.json";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
 import { formatGmtPlus1Date, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
-
-const HOURLY_REFRESH_MS = 60 * 60 * 1000;
 
 interface SignalData {
   gold: number;
@@ -42,7 +41,7 @@ export default function ChartPage() {
 
   const { data: liveSignal } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: HOURLY_REFRESH_MS,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });

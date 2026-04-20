@@ -3,8 +3,7 @@ import { useState, useEffect } from "react";
 import { Copy, Check, RefreshCw, TrendingUp, TrendingDown, Minus, Clock, Target, Shield, ArrowRight, Zap, ChevronRight } from "lucide-react";
 import bakedSignal from "@/data/signal-data.json";
 import { LogoutButton } from "@/components/auth/LogoutButton";
-
-const HOURLY_REFRESH_MS = 60 * 60 * 1000;
+import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
 
 interface Reason {
   factor: string;
@@ -52,7 +51,7 @@ export default function SignalPage() {
 
   const { data: liveData, isLoading, refetch, isFetching } = useQuery<SignalData>({
     queryKey: ["/api/signal"],
-    refetchInterval: HOURLY_REFRESH_MS,
+    refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
   });
