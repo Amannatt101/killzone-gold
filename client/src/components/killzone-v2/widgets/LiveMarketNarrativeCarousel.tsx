@@ -1,10 +1,4 @@
 import { useEffect, useMemo, useState } from "react";
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  type CarouselApi,
-} from "@/components/ui/carousel";
 
 export type MarketNarrativeSlide = {
   id: "gold" | "yields" | "dollar" | "risk";
@@ -102,43 +96,88 @@ const FALLBACK_SLIDES: MarketNarrativeSlide[] = [
   },
 ];
 
-function biasClass(bias: MarketNarrativeSlide["bias"]): string {
-  if (bias === "Bullish") return "bull";
-  if (bias === "Bearish") return "bear";
+const DEFAULT_STORY_IMAGE =
+  "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80";
+
+type NarrativeKind = "macro" | "news" | "cbank" | "geo";
+
+function impactClass(impact?: MarketNarrativeSlide["impact"]): "high" | "med" | "low" {
+  if (impact === "High impact") return "high";
+  if (impact === "Medium impact") return "med";
+  return "low";
+}
+
+function narrativeKind(slide: MarketNarrativeSlide): NarrativeKind {
+  if (slide.id === "yields") return "macro";
+  if (slide.id === "dollar") return "macro";
+  if (slide.id === "gold") return "cbank";
+  if (slide.id === "risk") return "geo";
+  return "news";
+}
+
+function kindLabel(kind: NarrativeKind): string {
+  if (kind === "cbank") return "CENTRAL BANK";
+  if (kind === "geo") return "GEOPOLITICAL";
+  if (kind === "macro") return "MACRO PRINT";
+  return "FLOW";
+}
+
+function driverStance(slide: MarketNarrativeSlide): "bull" | "bear" | "neutral" {
+  if (slide.bias === "Bullish") return "bull";
+  if (slide.bias === "Bearish") return "bear";
   return "neutral";
+}
+
+function primaryStoryForSlide(slide: MarketNarrativeSlide) {
+  if (slide.headlines && slide.headlines.length > 0) {
+    return {
+      title: slide.headlines[0].title,
+      source: slide.headlines[0].source,
+      age: `${slide.headlines[0].age} ago`,
+      imageUrl: slide.headlines[0].imageUrl ?? DEFAULT_STORY_IMAGE,
+    };
+  }
+
+  return {
+    title: slide.title || slide.text,
+    source: "Gold Intelligence",
+    age: slide.freshness?.market ?? "now",
+    imageUrl: slide.imageUrl || DEFAULT_STORY_IMAGE,
+  };
 }
 
 export function LiveMarketNarrativeCarousel({
   slides,
-  rotateMs = 12000,
+  rotateMs = 6500,
 }: LiveMarketNarrativeCarouselProps) {
-  const [api, setApi] = useState<CarouselApi>();
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const displaySlides = useMemo(
-    () => (slides.length > 0 ? slides.slice(0, 4) : FALLBACK_SLIDES),
+    () => (slides.length > 0 ? slides.slice(0, 5) : FALLBACK_SLIDES),
     [slides],
   );
+  const total = displaySlides.length;
+  const current = displaySlides[index];
+  const prev = displaySlides[(index - 1 + total) % total];
+  const next = displaySlides[(index + 1) % total];
+  const currentStory = primaryStoryForSlide(current);
 
   useEffect(() => {
-    if (!api) return;
-    const onSelect = () => setIndex(api.selectedScrollSnap());
-    onSelect();
-    api.on("select", onSelect);
-    return () => {
-      api.off("select", onSelect);
-    };
-  }, [api]);
-
-  useEffect(() => {
-    if (!api || paused || displaySlides.length <= 1) return;
+    if (paused || total <= 1) return;
     const timer = window.setInterval(() => {
-      const current = api.selectedScrollSnap();
-      const next = (current + 1) % displaySlides.length;
-      api.scrollTo(next);
+      setIndex((value) => (value + 1) % total);
     }, rotateMs);
     return () => window.clearInterval(timer);
-  }, [api, paused, rotateMs, displaySlides.length]);
+  }, [paused, rotateMs, total]);
+
+  useEffect(() => {
+    setIndex((value) => (value >= total ? 0 : value));
+  }, [total]);
+
+  const goTo = (nextIndex: number) => {
+    const wrapped = ((nextIndex % total) + total) % total;
+    setIndex(wrapped);
+  };
 
   return (
     <>
@@ -155,102 +194,149 @@ export function LiveMarketNarrativeCarousel({
       </div>
 
       <div
-        className="lmn-wrap"
+        className="narr-car"
         onMouseEnter={() => setPaused(true)}
         onMouseLeave={() => setPaused(false)}
       >
-        <Carousel
-          setApi={setApi}
-          opts={{ loop: true, align: "start" }}
-          className="lmn-carousel"
-          aria-label="Live market narratives carousel"
-        >
-          <CarouselContent className="ml-0">
-            {displaySlides.map((slide) => {
-              const primaryStory =
-                slide.headlines && slide.headlines.length > 0
-                  ? slide.headlines[0]
-                  : {
-                      title: slide.text,
-                      source: "Gold Intelligence",
-                      age: slide.freshness?.market ?? "now",
-                      url: undefined,
-                      imageUrl:
-                        "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80",
-                    };
-              return (
-                <CarouselItem key={slide.id} className="pl-0">
-                  <article className="lmn-card">
-                    <div className="lmn-news-shell">
-                      <div className="lmn-top">
-                        <div className="lmn-head">
-                          <div className="lmn-title">{slide.title}</div>
-                          <div className="lmn-tags">
-                            <span className="tag-chip live">Live</span>
-                            {slide.impact && <span className="tag-chip">{slide.impact}</span>}
-                            {(slide.tags ?? []).slice(0, 1).map((t, idx) => (
-                              <span key={`${slide.id}-tag-${idx}`} className="tag-chip">
-                                {t}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="lmn-ts">{slide.updatedLabel}</div>
-                      </div>
+        <div className="narr-car-head">
+          <div className="narr-car-eyebrow">
+            <span className="pulse" />
+            <span>Live Market Narrative</span>
+            <span className="sep">·</span>
+            <span>Fundamental News Flow</span>
+          </div>
+          <div className="narr-car-controls">
+            <div className="narr-car-counter mono">
+              <span className="cur">{String(index + 1).padStart(2, "0")}</span>
+              <span className="sep">/</span>
+              <span>{String(total).padStart(2, "0")}</span>
+            </div>
+            <button className="narr-car-btn" type="button" onClick={() => goTo(index - 1)} aria-label="Previous">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M10 3l-5 5 5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            <button className="narr-car-btn" type="button" onClick={() => goTo(index + 1)} aria-label="Next">
+              <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path
+                  d="M6 3l5 5-5 5"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
 
-                      <div className="lmn-lede">{slide.text}</div>
+        <div className="narr-car-stage">
+          <button className="narr-car-peek left" type="button" onClick={() => goTo(index - 1)}>
+            <div className="narr-peek-kind">{kindLabel(narrativeKind(prev))}</div>
+            <div className="narr-peek-head">{prev.title}</div>
+          </button>
 
-                      <div className="lmn-freshness mono">
-                        Market {slide.freshness?.market ?? "n/a"} · News {slide.freshness?.news ?? "n/a"}
-                      </div>
+          <article className="narr-car-slide" key={`${current.id}-${index}`}>
+            <div className="narr-slide-top">
+              <div className="narr-slide-tags">
+                <span className={`narr-tag kind-${narrativeKind(current)}`}>
+                  {kindLabel(narrativeKind(current))}
+                </span>
+                <span className={`narr-tag impact-${impactClass(current.impact)}`}>
+                  <span className="impact-dot" />
+                  {current.impact ?? "Low impact"}
+                </span>
+                <span className={`narr-tag driver-${driverStance(current)}`}>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.3" />
+                    <path d="M8 4v4l2.5 1.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+                  </svg>
+                  {(current.tags && current.tags[0]) || current.id.toUpperCase()}
+                </span>
+              </div>
+              <div className="narr-slide-ts mono">
+                <span className="ago">{current.freshness?.news ?? "now"}</span>
+                <span className="sep">·</span>
+                <span>{current.updatedLabel}</span>
+              </div>
+            </div>
 
-                      <div className="lmn-stories">
-                        <a
-                          className="lmn-story lmn-story-primary"
-                          href={primaryStory.url || "#"}
-                          target={primaryStory.url ? "_blank" : undefined}
-                          rel={primaryStory.url ? "noreferrer noopener" : undefined}
-                          onClick={(e) => !primaryStory.url && e.preventDefault()}
-                        >
-                          <div className="lmn-story-copy">
-                            <div className="lmn-story-meta">
-                              <span className="src">{primaryStory.source}</span>
-                              <span className="sep">·</span>
-                              <span>{primaryStory.age} ago</span>
-                            </div>
-                            <div className="lmn-story-title">{primaryStory.title}</div>
-                          </div>
-                          <div className="lmn-story-thumb">
-                            <img
-                              src={
-                                primaryStory.imageUrl ||
-                                "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80"
-                              }
-                              alt={`${primaryStory.source} story`}
-                              loading="lazy"
-                              decoding="async"
-                            />
-                          </div>
-                        </a>
-                      </div>
-                    </div>
-                  </article>
-                </CarouselItem>
-              );
-            })}
-          </CarouselContent>
-        </Carousel>
+            <div className="narr-slide-headline">{current.title}</div>
+            <div className="narr-slide-body">{current.text}</div>
 
-        <div className="lmn-dots">
+            <div className="narr-slide-context">
+              <div className="narr-slide-context-lbl">Why it matters</div>
+              <div className="narr-slide-context-body">{currentStory.title}</div>
+            </div>
+
+            <div className="narr-slide-foot">
+              <div className="narr-slide-source mono">
+                <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                  <rect x="2.5" y="3" width="11" height="10" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                  <path d="M2.5 6h11M6 3v10" stroke="currentColor" strokeWidth="1.2" />
+                </svg>
+                SOURCE · {currentStory.source}
+              </div>
+              <div className="narr-slide-actions">
+                <button className="narr-action" type="button" onClick={() => goTo(index - 1)}>
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M10 3l-5 5 5 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                  Previous
+                </button>
+                <button className="narr-action primary" type="button" onClick={() => goTo(index + 1)}>
+                  Next update
+                  <svg width="10" height="10" viewBox="0 0 16 16" fill="none">
+                    <path
+                      d="M6 3l5 5-5 5"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            {!paused && (
+              <div className="narr-slide-progress">
+                <div key={`progress-${index}`} className="narr-slide-progress-bar" />
+              </div>
+            )}
+          </article>
+
+          <button className="narr-car-peek right" type="button" onClick={() => goTo(index + 1)}>
+            <div className="narr-peek-kind">{kindLabel(narrativeKind(next))}</div>
+            <div className="narr-peek-head">{next.title}</div>
+          </button>
+        </div>
+
+        <div className="narr-car-dots">
           {displaySlides.map((slide, i) => (
             <button
-              key={`dot-${slide.id}`}
+              key={`dot-${slide.id}-${i}`}
               type="button"
-              className={`lmn-dot ${i === index ? "active" : ""}`}
-              aria-label={`Go to ${slide.title}`}
-              onClick={() => api?.scrollTo(i)}
-            />
+              className={`narr-dot ${i === index ? "active" : ""} impact-${impactClass(slide.impact)}`}
+              onClick={() => goTo(i)}
+              aria-label={`Slide ${i + 1}`}
+            >
+              <span className="narr-dot-fill" />
+            </button>
           ))}
+          <div className="narr-car-auto mono">{paused ? "PAUSED" : "AUTO · 6.5s"}</div>
         </div>
       </div>
     </>
