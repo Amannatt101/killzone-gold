@@ -94,6 +94,432 @@ function getData(): MonthlyData[] {
   return cachedData;
 }
 
+type NarrativeBias = "Bullish" | "Bearish" | "Neutral";
+type ImpactLevel = "High impact" | "Medium impact" | "Low impact";
+
+type MarketNarrativeSlide = {
+  id: "gold" | "yields" | "dollar" | "risk";
+  title: string;
+  metrics: { label: string; value: string }[];
+  text: string;
+  updatedLabel: string;
+  bias: NarrativeBias;
+  impact: ImpactLevel;
+  tags: string[];
+  imageUrl?: string;
+  imageAlt?: string;
+  freshness?: {
+    market: string;
+    news: string;
+  };
+  headlines?: {
+    title: string;
+    source: string;
+    age: string;
+    url?: string;
+    imageUrl?: string;
+  }[];
+};
+
+type NewsHeadline = {
+  title: string;
+  source: string;
+  publishedAt: string;
+  url?: string;
+  imageUrl?: string;
+};
+
+type NarrativeCache = {
+  payload: {
+    updatedAt: string;
+    changed: boolean;
+    slides: MarketNarrativeSlide[];
+  } | null;
+  lastHeadlineSignature: string | null;
+  lastMarketSnapshot: {
+    gold: number;
+    usdBroad: number;
+    realYield: number;
+    score: number;
+  } | null;
+  lastGeneratedTextBySlide: Record<string, string>;
+};
+
+const MARKET_MOVE_THRESHOLD_PCT = 0.3;
+const MARKET_STALE_MS = 2 * 60 * 1000;
+const NEWS_QUERY =
+  '(gold OR inflation OR "federal reserve" OR "interest rates" OR geopolitics) AND (gold OR XAU)';
+const NEWS_DOMAINS = [
+  "reuters.com",
+  "bloomberg.com",
+  "cnbc.com",
+  "marketwatch.com",
+  "ft.com",
+  "wsj.com",
+  "kitco.com",
+  "investing.com",
+].join(",");
+const narrativeCache: NarrativeCache = {
+  payload: null,
+  lastHeadlineSignature: null,
+  lastMarketSnapshot: null,
+  lastGeneratedTextBySlide: {},
+};
+
+function pctChange(current: number, previous: number): number {
+  if (!Number.isFinite(previous) || previous === 0) return 0;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+function biasFromAlignment(goldPct: number, usdPct: number, yieldPct: number): NarrativeBias {
+  const bullishSignals = Number(goldPct > 0) + Number(usdPct < 0) + Number(yieldPct < 0);
+  const bearishSignals = Number(goldPct < 0) + Number(usdPct > 0) + Number(yieldPct > 0);
+  if (bullishSignals >= 2) return "Bullish";
+  if (bearishSignals >= 2) return "Bearish";
+  return "Neutral";
+}
+
+function fmtPct(v: number, digits = 2): string {
+  return `${v >= 0 ? "+" : ""}${v.toFixed(digits)}%`;
+}
+
+function minsAgoLabel(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const mins = Math.max(0, Math.floor(diffMs / 60000));
+  return mins < 1 ? "Updated just now" : `Updated ${mins} min ago`;
+}
+
+function ageLabel(iso: string): string {
+  const ms = Math.max(0, Date.now() - new Date(iso).getTime());
+  const mins = Math.floor(ms / 60000);
+  if (mins < 1) return "<1m";
+  if (mins < 60) return `${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  return `${hrs}h`;
+}
+
+function fallbackNewsImage(source: string): string {
+  const s = source.toLowerCase();
+  if (s.includes("reuters")) {
+    return "https://images.unsplash.com/photo-1612550761236-e813928f7271?auto=format&fit=crop&w=800&q=80";
+  }
+  if (s.includes("bloomberg")) {
+    return "https://images.unsplash.com/photo-1642790551116-18e150f248e3?auto=format&fit=crop&w=800&q=80";
+  }
+  if (s.includes("cnbc") || s.includes("marketwatch")) {
+    return "https://images.unsplash.com/photo-1640340434855-6084b1f4901c?auto=format&fit=crop&w=800&q=80";
+  }
+  if (s.includes("kitco")) {
+    return "https://images.unsplash.com/photo-1610375461369-d613b5648f37?auto=format&fit=crop&w=800&q=80";
+  }
+  return "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80";
+}
+
+async function fetchMarketNews(): Promise<NewsHeadline[]> {
+  const apiKey = process.env.NEWS_API_KEY;
+  const out: NewsHeadline[] = [];
+
+  if (apiKey) {
+    const url = new URL("https://newsapi.org/v2/everything");
+    url.searchParams.set("q", NEWS_QUERY);
+    url.searchParams.set("language", "en");
+    url.searchParams.set("sortBy", "publishedAt");
+    url.searchParams.set("pageSize", "16");
+    url.searchParams.set("domains", NEWS_DOMAINS);
+    url.searchParams.set("apiKey", apiKey);
+
+    try {
+      const resp = await fetch(url.toString(), {
+        headers: { "User-Agent": "Gold-Intel/1.0" },
+      });
+      if (!resp.ok) {
+        console.warn(`[Narratives] NewsAPI fetch failed: ${resp.status}`);
+      } else {
+        const json = (await resp.json()) as {
+          articles?: {
+            title?: string;
+            source?: { name?: string };
+            publishedAt?: string;
+            url?: string;
+            urlToImage?: string;
+          }[];
+        };
+        out.push(
+          ...(json.articles ?? [])
+            .map((a) => ({
+              title: String(a.title ?? "").trim(),
+              source: String(a.source?.name ?? "NewsAPI").trim(),
+              publishedAt: String(a.publishedAt ?? "").trim(),
+              url: a.url,
+              imageUrl: a.urlToImage || undefined,
+            }))
+            .filter((a) => a.title.length > 12 && a.publishedAt.length > 0),
+        );
+      }
+    } catch (err) {
+      console.warn("[Narratives] NewsAPI fetch error:", err);
+    }
+  }
+
+  // No-key live fallback feed (Google News RSS)
+  try {
+    const rssUrl =
+      "https://news.google.com/rss/search?q=gold%20OR%20inflation%20OR%20federal%20reserve%20OR%20interest%20rates%20OR%20geopolitics&hl=en-US&gl=US&ceid=US:en";
+    const resp = await fetch(rssUrl, {
+      headers: { "User-Agent": "Gold-Intel/1.0" },
+    });
+    if (resp.ok) {
+      const xml = await resp.text();
+      const itemMatches = xml.match(/<item>[\s\S]*?<\/item>/g) ?? [];
+      for (const item of itemMatches.slice(0, 10)) {
+        const title = (item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/)?.[1] ??
+          item.match(/<title>(.*?)<\/title>/)?.[1] ??
+          "")
+          .replace(/&amp;/g, "&")
+          .trim();
+        const source = (item.match(/<source[^>]*>(.*?)<\/source>/)?.[1] ?? "Google News").trim();
+        const publishedAt = (item.match(/<pubDate>(.*?)<\/pubDate>/)?.[1] ?? "").trim();
+        const link = (item.match(/<link>(.*?)<\/link>/)?.[1] ?? "").trim();
+        if (title.length > 12 && publishedAt.length > 0) {
+          out.push({
+            title,
+            source,
+            publishedAt: new Date(publishedAt).toISOString(),
+            url: link || undefined,
+            imageUrl: fallbackNewsImage(source),
+          });
+        }
+      }
+    } else {
+      console.warn(`[Narratives] Google RSS fetch failed: ${resp.status}`);
+    }
+  } catch (err) {
+    console.warn("[Narratives] Google RSS fetch error:", err);
+  }
+
+  // Deduplicate by normalized title; keep newest first
+  const seen = new Set<string>();
+  return out
+    .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime())
+    .filter((h) => {
+      const key = h.title.toLowerCase().replace(/\s+/g, " ").trim();
+      if (!key || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 8);
+}
+
+function reuseIfUnchanged(slideId: string, candidate: string): string {
+  const prior = narrativeCache.lastGeneratedTextBySlide[slideId];
+  if (prior && prior === candidate) return prior;
+  narrativeCache.lastGeneratedTextBySlide[slideId] = candidate;
+  return candidate;
+}
+
+function buildMarketNarrativeSlides(
+  live: LiveScoreData,
+  score: number,
+  news: NewsHeadline[]
+): MarketNarrativeSlide[] {
+  const prev = narrativeCache.lastMarketSnapshot;
+  const goldPct = prev ? pctChange(live.goldClose, prev.gold) : 0;
+  const usdPct = prev ? pctChange(live.usdBroad, prev.usdBroad) : 0;
+  const yieldPct = prev ? pctChange(live.realYield, prev.realYield) : 0;
+  const alignmentBias = biasFromAlignment(goldPct, usdPct, yieldPct);
+  const scoreBias: NarrativeBias = score >= 65 ? "Bullish" : score <= 35 ? "Bearish" : "Neutral";
+  const updatedLabel = minsAgoLabel(live.lastFetched);
+  const topHeadline = news[0];
+  const classifyHeadline = (title: string): "gold" | "yields" | "dollar" | "risk" => {
+    const t = title.toLowerCase();
+    if (/(yield|treasury|10y|bond|real rate)/.test(t)) return "yields";
+    if (/(dollar|dxy|usd|fx)/.test(t)) return "dollar";
+    if (/(war|geopolitic|risk|safe haven|inflation|fed|rate|oil|energy)/.test(t)) return "risk";
+    return "gold";
+  };
+  const groupedHeadlines: Record<"gold" | "yields" | "dollar" | "risk", NewsHeadline[]> = {
+    gold: [],
+    yields: [],
+    dollar: [],
+    risk: [],
+  };
+  for (const h of news) groupedHeadlines[classifyHeadline(h.title)].push(h);
+
+  const impactLevel = (n: number): ImpactLevel =>
+    n >= 2.4 ? "High impact" : n >= 1.2 ? "Medium impact" : "Low impact";
+
+  const freshness = {
+    market: ageLabel(live.lastFetched),
+    news: topHeadline?.publishedAt ? ageLabel(topHeadline.publishedAt) : "n/a",
+  };
+  const mapHeadlines = (items: NewsHeadline[]) =>
+    (items.length ? items : news).slice(0, 5).map((h) => ({
+      title: h.title,
+      source: h.source,
+      age: ageLabel(h.publishedAt),
+      url: h.url,
+      imageUrl: h.imageUrl || fallbackNewsImage(h.source),
+    }));
+  const imageById: Record<MarketNarrativeSlide["id"], { url: string; alt: string }> = {
+    gold: {
+      url: "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80",
+      alt: "Gold market chart",
+    },
+    yields: {
+      url: "https://images.unsplash.com/photo-1642543348745-3d4fd8b7f09f?auto=format&fit=crop&w=1200&q=80",
+      alt: "Treasury yields and rates monitor",
+    },
+    dollar: {
+      url: "https://images.unsplash.com/photo-1526304640581-d334cdbbf45e?auto=format&fit=crop&w=1200&q=80",
+      alt: "US dollar and FX movement",
+    },
+    risk: {
+      url: "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80",
+      alt: "Geopolitical and macro risk headlines",
+    },
+  };
+
+  const goldDriverScore = Math.abs(goldPct) * 2.4 + Math.abs(score - 50) / 16;
+  const yieldsDriverScore = Math.abs(yieldPct) * 2.8 + Math.abs(live.ryScore - 50) / 18;
+  const dollarDriverScore = Math.abs(usdPct) * 2.6 + Math.abs(live.usdScore - 50) / 18;
+  const riskDriverScore =
+    Math.abs(live.riskoffScore - 50) / 10 +
+    Math.abs(live.gprScore - 50) / 22 +
+    Math.abs(live.inflationScore - 50) / 25 +
+    (groupedHeadlines.risk.length > 0 ? 0.8 : 0);
+
+  const candidates: (MarketNarrativeSlide & { scoreWeight: number })[] = [
+    {
+      id: "gold",
+      title:
+        goldPct > 0.2
+          ? "BREAKING: Gold catches fresh upside flow"
+          : goldPct < -0.2
+            ? "BREAKING: Gold slips as pressure rebuilds"
+            : "LIVE: Gold holds in a balanced tape",
+      metrics: [
+        { label: "Gold", value: `$${live.goldClose.toFixed(1)}` },
+        { label: "Move", value: fmtPct(goldPct) },
+        { label: "Score", value: score.toFixed(1) },
+      ],
+      text: reuseIfUnchanged(
+        "gold",
+        goldPct > 0.2
+          ? "Gold is attracting short-term bids as macro pressure eases. Price is responding to a cleaner backdrop and buyers are defending dips for now."
+          : goldPct < -0.2
+            ? "Gold is under pressure in the latest pass as macro headwinds reassert. Until rates or dollar momentum cools, upside attempts remain vulnerable."
+            : "Gold is range-bound with no clean trend impulse yet. Flow remains tactical, with traders waiting for a stronger rates-dollar signal."
+      ),
+      updatedLabel,
+      bias: scoreBias,
+      impact: impactLevel(goldDriverScore),
+      tags: [scoreBias === "Bullish" ? "Bullish for gold" : scoreBias === "Bearish" ? "Bearish for gold" : "Neutral", impactLevel(goldDriverScore)],
+      imageUrl: imageById.gold.url,
+      imageAlt: imageById.gold.alt,
+      freshness,
+      headlines: mapHeadlines(groupedHeadlines.gold),
+      scoreWeight: goldDriverScore,
+    },
+    {
+      id: "yields",
+      title:
+        yieldPct > 0.18
+          ? "YIELDS WATCH: Rising rates pressure gold"
+          : yieldPct < -0.18
+            ? "YIELDS WATCH: Softer rates support gold"
+            : "YIELDS WATCH: Rates stable, pressure mixed",
+      metrics: [
+        { label: "US10Y Real", value: `${live.realYield.toFixed(2)}%` },
+        { label: "Change", value: fmtPct(yieldPct) },
+        { label: "RY Score", value: live.ryScore.toFixed(1) },
+      ],
+      text: reuseIfUnchanged(
+        "yields",
+        yieldPct > 0.18
+          ? "Treasury yields are moving higher again, increasing carry pressure on non-yielding gold. This keeps upside constrained unless rates fade."
+          : yieldPct < -0.18
+            ? "Yields are cooling, which reduces opportunity-cost drag on gold. That shift is giving bulls more room to hold structure."
+            : "Yields are not providing a decisive directional signal this round. Gold reaction is likely to stay flow-driven until rates break trend."
+      ),
+      updatedLabel,
+      bias: yieldPct < 0 ? "Bullish" : yieldPct > 0 ? "Bearish" : "Neutral",
+      impact: impactLevel(yieldsDriverScore),
+      tags: [yieldPct < 0 ? "Bullish for gold" : yieldPct > 0 ? "Bearish for gold" : "Neutral", impactLevel(yieldsDriverScore)],
+      imageUrl: imageById.yields.url,
+      imageAlt: imageById.yields.alt,
+      freshness,
+      headlines: mapHeadlines(groupedHeadlines.yields),
+      scoreWeight: yieldsDriverScore,
+    },
+    {
+      id: "dollar",
+      title:
+        usdPct > 0.18
+          ? "DOLLAR TRACKER: USD strength caps gold"
+          : usdPct < -0.18
+            ? "DOLLAR TRACKER: USD softens, gold supported"
+            : "DOLLAR TRACKER: FX flow is balanced",
+      metrics: [
+        { label: "USD Broad", value: live.usdBroad.toFixed(2) },
+        { label: "Change", value: fmtPct(usdPct) },
+        { label: "USD Score", value: live.usdScore.toFixed(1) },
+      ],
+      text: reuseIfUnchanged(
+        "dollar",
+        usdPct > 0.18
+          ? "The dollar is firming and tightening financial conditions for gold. Unless USD momentum rolls over, rallies may continue to fade."
+          : usdPct < -0.18
+            ? "The dollar is easing, removing a key headwind for gold. That gives spot a cleaner runway if yields do not reprice higher."
+            : "Dollar direction is indecisive and not forcing gold yet. Traders should treat this as a neutral FX backdrop until a break emerges."
+      ),
+      updatedLabel,
+      bias: usdPct < 0 ? "Bullish" : usdPct > 0 ? "Bearish" : "Neutral",
+      impact: impactLevel(dollarDriverScore),
+      tags: [usdPct < 0 ? "Bullish for gold" : usdPct > 0 ? "Bearish for gold" : "Neutral", impactLevel(dollarDriverScore)],
+      imageUrl: imageById.dollar.url,
+      imageAlt: imageById.dollar.alt,
+      freshness,
+      headlines: mapHeadlines(groupedHeadlines.dollar),
+      scoreWeight: dollarDriverScore,
+    },
+    {
+      id: "risk",
+      title:
+        live.riskoffScore >= 60
+          ? "SAFE-HAVEN FLOW: Risk tone supports gold"
+          : live.riskoffScore <= 40
+            ? "MACRO ALERT: Risk-on tone fades gold demand"
+            : "MACRO ALERT: Risk sentiment mixed",
+      metrics: [
+        { label: "Risk-Off", value: live.riskoffScore.toFixed(1) },
+        { label: "GPR", value: live.gpr.toFixed(0) },
+        { label: "Inflation", value: live.breakeven.toFixed(2) + "%" },
+      ],
+      text: reuseIfUnchanged(
+        "risk",
+        live.riskoffScore >= 60
+          ? "Defensive demand is rebuilding as macro and geopolitical uncertainty stay elevated. That backdrop is supportive for gold on pullbacks."
+          : live.riskoffScore <= 40
+            ? "Risk appetite is improving and safe-haven demand is softer. Without a new risk catalyst, gold is less likely to attract defensive inflows."
+            : "Risk sentiment is mixed and not giving a dominant signal. Gold remains sensitive to incoming inflation, Fed, and geopolitical headlines."
+      ),
+      updatedLabel,
+      bias: alignmentBias,
+      impact: impactLevel(riskDriverScore),
+      tags: [alignmentBias === "Bullish" ? "Bullish for gold" : alignmentBias === "Bearish" ? "Bearish for gold" : "Neutral", impactLevel(riskDriverScore)],
+      imageUrl: imageById.risk.url,
+      imageAlt: imageById.risk.alt,
+      freshness,
+      headlines: mapHeadlines(groupedHeadlines.risk),
+      scoreWeight: riskDriverScore,
+    },
+  ];
+
+  return candidates
+    .sort((a, b) => b.scoreWeight - a.scoreWeight)
+    .map(({ scoreWeight: _scoreWeight, ...slide }) => slide);
+}
+
 /** Convert live score into the MonthlyData shape for frontend compatibility */
 function liveToMonthly(live: LiveScoreData): MonthlyData {
   return {
@@ -725,6 +1151,54 @@ export async function registerRoutes(
     } catch (err) {
       console.error("Error in /api/signal:", err);
       res.status(500).json({ error: "Failed to generate signal" });
+    }
+  });
+
+  app.get("/api/market-narratives", async (_req, res) => {
+    try {
+      let live = getCachedLiveScore();
+      const stale = !live || Date.now() - new Date(live.lastFetched).getTime() > MARKET_STALE_MS;
+      if (stale) live = await fetchAndComputeLiveScore();
+      const score = live.goldSafeHavenScore;
+      const news = await fetchMarketNews();
+      const headlineSignature = news.slice(0, 3).map((h) => h.title).join("|");
+
+      const prev = narrativeCache.lastMarketSnapshot;
+      const marketMoveExceeded = !!prev && (
+        Math.abs(pctChange(live.goldClose, prev.gold)) >= MARKET_MOVE_THRESHOLD_PCT ||
+        Math.abs(pctChange(live.usdBroad, prev.usdBroad)) >= MARKET_MOVE_THRESHOLD_PCT ||
+        Math.abs(pctChange(live.realYield, prev.realYield)) >= MARKET_MOVE_THRESHOLD_PCT
+      );
+      const hasNewHeadline = narrativeCache.lastHeadlineSignature !== headlineSignature;
+      const shouldRegenerate = !narrativeCache.payload || hasNewHeadline || marketMoveExceeded;
+
+      if (!shouldRegenerate && narrativeCache.payload) {
+        return res.json({ ...narrativeCache.payload, changed: false });
+      }
+
+      const slides = buildMarketNarrativeSlides(live, score, news);
+      const payload = {
+        updatedAt: new Date().toISOString(),
+        changed: true,
+        slides,
+      };
+
+      narrativeCache.payload = payload;
+      narrativeCache.lastHeadlineSignature = headlineSignature;
+      narrativeCache.lastMarketSnapshot = {
+        gold: live.goldClose,
+        usdBroad: live.usdBroad,
+        realYield: live.realYield,
+        score: live.goldSafeHavenScore,
+      };
+
+      return res.json(payload);
+    } catch (err) {
+      console.error("Error in /api/market-narratives:", err);
+      if (narrativeCache.payload) {
+        return res.json({ ...narrativeCache.payload, changed: false });
+      }
+      return res.status(500).json({ error: "Failed to build market narratives" });
     }
   });
 

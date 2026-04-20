@@ -2,12 +2,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
 import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDashboard";
 import { LogoutButton } from "@/components/auth/LogoutButton";
+import type { MarketNarrativeSlide } from "@/components/killzone-v2/widgets/LiveMarketNarrativeCarousel";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
 import { buildDominanceFromComponents, scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
 import { apiRequest } from "@/lib/queryClient";
 import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
-import { formatGmtPlus1DateTime, formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+import { formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 import { RefreshCw } from "lucide-react";
 
 type ScoreApi = {
@@ -48,6 +49,12 @@ type ScoreLogApi = {
   }[];
 };
 
+type MarketNarrativesApi = {
+  updatedAt: string;
+  changed: boolean;
+  slides: MarketNarrativeSlide[];
+};
+
 function safeFixed(v: unknown, d = 2): string {
   if (v != null && typeof v === "number" && !Number.isNaN(v)) return v.toFixed(d);
   return "—";
@@ -58,6 +65,102 @@ function regimeChipFromString(regime: string): string {
   if (r.length <= 24) return r.toUpperCase();
   const words = r.split(/\s+/).slice(0, 3).join(" ");
   return words.toUpperCase();
+}
+
+function buildFallbackNarrativeSlides(
+  signal: SignalData,
+  scoreApi?: ScoreApi
+): MarketNarrativeSlide[] {
+  const reasons = signal.reasons ?? [];
+  const bullish = reasons.filter((r) => r.impact === "bullish").length;
+  const bearish = reasons.filter((r) => r.impact === "bearish").length;
+  const neutral = reasons.filter((r) => r.impact === "neutral").length;
+  const topBull = reasons.find((r) => r.impact === "bullish");
+  const topBear = reasons.find((r) => r.impact === "bearish");
+  const bias: "Bullish" | "Bearish" | "Neutral" =
+    signal.score >= 65 ? "Bullish" : signal.score <= 35 ? "Bearish" : "Neutral";
+
+  const macroText =
+    bias === "Bullish"
+      ? "Gold is holding with a constructive macro tilt as defensive flows remain active. Dollar and yield pressure are not dominant enough to break the bid."
+      : bias === "Bearish"
+      ? "Gold is facing macro headwinds as opportunity-cost pressure remains elevated. Without softer yields or dollar relief, upside is likely to stay capped."
+      : "Macro inputs are mixed and conviction is moderate. Gold remains sensitive to the next directional move in rates and broad dollar trend.";
+
+  return [
+    {
+      id: "gold",
+      title: "BREAKING: Gold price flow update",
+      metrics: [
+        { label: "Gold", value: `$${safeFixed(signal.gold)}` },
+        { label: "Real Yield", value: scoreApi?.current?.realYield != null ? `${scoreApi.current.realYield.toFixed(2)}%` : "—" },
+      ],
+      text: macroText,
+      updatedLabel: `Updated ${signal.meta.updatedAgo}`,
+      bias,
+      impact: "Medium impact",
+      tags: [bias === "Bullish" ? "Bullish for gold" : bias === "Bearish" ? "Bearish for gold" : "Neutral"],
+      imageUrl:
+        "https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=1200&q=80",
+      imageAlt: "Macro market chart screen",
+      freshness: { market: signal.meta.updatedAgo, news: "n/a" },
+    },
+    {
+      id: "yields",
+      title: "YIELDS WATCH: Live rates pulse",
+      metrics: [
+        { label: "Drivers", value: `${bullish} bull / ${bearish} bear` },
+        { label: "Neutral", value: String(neutral) },
+      ],
+      text: topBull
+        ? `Headline-style flow still leans toward ${topBull.factor.toLowerCase()}. Keep watching for confirmation from rates and dollar reaction before extending risk.`
+        : "No single headline catalyst is dominating right now. Market reaction remains more data-driven than event-driven in this cycle.",
+      updatedLabel: `Updated ${signal.meta.updatedAgo}`,
+      bias,
+      impact: "Medium impact",
+      tags: [bias === "Bullish" ? "Bullish for gold" : bias === "Bearish" ? "Bearish for gold" : "Neutral"],
+      imageUrl:
+        "https://images.unsplash.com/photo-1504711434969-e33886168f5c?auto=format&fit=crop&w=1200&q=80",
+      imageAlt: "Financial news desk and headlines",
+      freshness: { market: signal.meta.updatedAgo, news: "n/a" },
+    },
+    {
+      id: "dollar",
+      title: "DOLLAR TRACKER: FX pressure check",
+      metrics: [
+        { label: "Score", value: signal.score.toFixed(1) },
+        { label: "Trade Zone", value: signal.tradeZone },
+      ],
+      text: topBear
+        ? `Positioning reflects pressure from ${topBear.factor.toLowerCase()} while support remains selective. The current score suggests tactical rather than trend conviction.`
+        : "Positioning remains balanced without a dominant opposing force. Score structure favors selective setups over aggressive directional positioning.",
+      updatedLabel: `Updated ${signal.meta.updatedAgo}`,
+      bias,
+      impact: "Medium impact",
+      tags: [bias === "Bullish" ? "Bullish for gold" : bias === "Bearish" ? "Bearish for gold" : "Neutral"],
+      imageUrl:
+        "https://images.unsplash.com/photo-1642790551116-18e150f248e3?auto=format&fit=crop&w=1200&q=80",
+      imageAlt: "Technical trading chart analysis",
+      freshness: { market: signal.meta.updatedAgo, news: "n/a" },
+    },
+    {
+      id: "risk",
+      title: "MACRO ALERT: Risk and event flow",
+      metrics: [
+        { label: "Bias", value: bias },
+        { label: "Next", value: signal.tradeZone },
+      ],
+      text: signal.continuation,
+      updatedLabel: `Updated ${signal.meta.updatedAgo}`,
+      bias,
+      impact: "Medium impact",
+      tags: [bias === "Bullish" ? "Bullish for gold" : bias === "Bearish" ? "Bearish for gold" : "Neutral"],
+      imageUrl:
+        "https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1200&q=80",
+      imageAlt: "Strategic planning and market outlook",
+      freshness: { market: signal.meta.updatedAgo, news: "n/a" },
+    },
+  ];
 }
 
 export default function IntelligenceDashboardPage() {
@@ -86,6 +189,12 @@ export default function IntelligenceDashboardPage() {
   const { data: scoreLogApi } = useQuery<ScoreLogApi>({
     queryKey: ["/api/score-log"],
     refetchInterval: REACTIVE_REFRESH_MS,
+    staleTime: 60 * 1000,
+    retry: false,
+  });
+  const { data: narrativeApi } = useQuery<MarketNarrativesApi>({
+    queryKey: ["/api/market-narratives"],
+    refetchInterval: 90 * 1000,
     staleTime: 60 * 1000,
     retry: false,
   });
@@ -150,65 +259,11 @@ export default function IntelligenceDashboardPage() {
     ];
   }, [scoreApi]);
 
-  const narrative = useMemo(() => {
-    const sc = signal.score;
-    const sorted = [...signal.reasons]
-      .filter((r) => r.impact !== "neutral")
-      .sort((a, b) => {
-        const as = (a as { score?: number }).score ?? (a.impact === "bullish" ? 75 : 20);
-        const bs = (b as { score?: number }).score ?? (b.impact === "bullish" ? 75 : 20);
-        return bs - as;
-      });
-    const topBull = sorted.filter((r) => r.impact === "bullish")[0];
-    const topBear = sorted.filter((r) => r.impact === "bearish")[0];
-
-    const primaryTitle = topBull?.factor ?? "Balanced macro";
-    const primaryDesc =
-      topBull?.detail ??
-      "No single bullish factor dominates — conditions are mixed across the model.";
-    const opposingTitle = topBear?.factor ?? "Balanced macro";
-    const opposingDesc =
-      topBear?.detail ??
-      "No single bearish factor dominates — watch yields and the dollar for the next swing.";
-
-    const statement =
-      sc >= 65 ? (
-        <>
-          Conditions favour gold on a <span className="em">macro basis</span> — score reflects{" "}
-          <span className="em">supportive safe-haven demand</span> with {signal.meta.bullishCount} of 5
-          factors leaning your way.
-        </>
-      ) : sc >= 50 ? (
-        <>
-          Gold is in a <span className="em">mixed regime</span> — opposing forces are roughly balanced
-          and <span className="em">conviction is moderate</span> at {sc.toFixed(0)}%.
-        </>
-      ) : (
-        <>
-          The macro backdrop is <span className="em">challenging for gold</span> today —{" "}
-          {signal.meta.bearishCount} of 5 factors are working against the safe-haven bid.
-        </>
-      );
-
-    const sub = `XAU/USD ${safeFixed(signal.gold)} · ${signal.tradeZone}. ${signal.continuation.slice(0, 220)}${signal.continuation.length > 220 ? "…" : ""}`;
-
-    const updatedTs = `${formatGmtPlus1DateTime(signal.meta.lastFetched, {
-      day: "2-digit",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    })} ${GMT_PLUS_ONE_LABEL}`;
-
-    return {
-      updatedTs,
-      statement,
-      sub,
-      primaryTitle,
-      primaryDesc,
-      opposingTitle,
-      opposingDesc,
-    };
-  }, [signal]);
+  const narrativeSlides = useMemo(() => {
+    const liveSlides = narrativeApi?.slides?.slice(0, 4);
+    if (liveSlides && liveSlides.length > 0) return liveSlides;
+    return buildFallbackNarrativeSlides(signal, scoreApi);
+  }, [narrativeApi?.slides, signal, scoreApi]);
 
   const positioning = useMemo(() => {
     const sc = signal.score;
@@ -392,7 +447,7 @@ export default function IntelligenceDashboardPage() {
       invalidationRows={invalidationRows}
       sessionStats={sessionStats}
       regimeMetrics={regimeMetrics}
-      narrative={narrative}
+      narrativeSlides={narrativeSlides}
       positioning={positioning}
       scoreLastChangedIso={scoreLastChangedIso}
       dominance={dominance}

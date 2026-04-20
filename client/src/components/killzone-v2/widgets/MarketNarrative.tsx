@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 export type MarketNarrativeProps = {
   updatedTs: string;
+  marketSymbol?: string;
   statement: ReactNode;
   sub: string;
   primaryTitle: string;
@@ -12,6 +13,7 @@ export type MarketNarrativeProps = {
 
 export function MarketNarrative({
   updatedTs,
+  marketSymbol,
   statement,
   sub,
   primaryTitle,
@@ -40,7 +42,7 @@ export function MarketNarrative({
             <span className="pulse" />
             <span>Live Market Narrative</span>
             <span className="sep">·</span>
-            <span>XAU / USD</span>
+            <span>{marketSymbol || "XAU / USD"}</span>
           </div>
           <div className="narrative-ts">{updatedTs}</div>
         </div>

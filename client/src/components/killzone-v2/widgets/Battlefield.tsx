@@ -1,4 +1,4 @@
-import { formatGmtPlus1DateTime, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+import { useEffect, useMemo, useState } from "react";
 import {
   buildDominanceFromComponents,
   type DominanceForce,
@@ -7,73 +7,116 @@ import {
 
 export function Battlefield({
   score,
-  scoreTag,
-  generatedAtIso,
-  scoreLastChangedIso,
-  nextRefreshIso,
   dominance,
 }: {
   score?: number;
-  scoreTag?: string;
-  generatedAtIso?: string;
-  scoreLastChangedIso?: string;
-  nextRefreshIso?: string | null;
   dominance?: DominanceResult;
 }) {
+  function normalizeForceName(name: string): string {
+    return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  }
+
+  function forceExplanation(name: string, side: "bull" | "bear"): string {
+    const n = normalizeForceName(name);
+
+    if (n.includes("geopolitical") || n.includes("gpr")) {
+      return "GPR tracks geopolitical stress. Rising readings usually strengthen safe-haven demand for gold, while easing risk can fade that support.";
+    }
+    if (n.includes("central bank")) {
+      return "Central bank buying removes physical supply from the market. Stronger accumulation tends to support price floors over time.";
+    }
+    if (n.includes("etf")) {
+      return "ETF flows reflect investment appetite for gold exposure. Net inflows suggest fresh demand, while outflows often signal weaker conviction.";
+    }
+    if (n.includes("dollar")) {
+      return "Gold often trades inversely to the U.S. dollar. A softer dollar can make gold relatively cheaper globally, while dollar strength can pressure it.";
+    }
+    if (n.includes("real yield")) {
+      return "Real yields are a key opportunity-cost signal for gold. Rising real yields typically pressure non-yielding assets, while falling yields are supportive.";
+    }
+    if (n.includes("risk on") || n.includes("risk sentiment")) {
+      return "Risk-on conditions shift capital toward growth and cyclical assets. That rotation can reduce defensive allocation into gold.";
+    }
+    if (n.includes("inflation")) {
+      return "Inflation direction shapes rate expectations and hedging demand. Cooling inflation can ease urgency for defensive gold positioning.";
+    }
+    if (n.includes("momentum")) {
+      return "Momentum captures trend persistence in price behavior. Weakening momentum often reduces follow-through buying and can limit upside extension.";
+    }
+
+    return side === "bull"
+      ? "This factor is currently adding to supportive flow for gold, helping reinforce the broader bullish side of the balance."
+      : "This factor is currently contributing to pressure on gold, adding weight to the opposing side of the balance.";
+  }
+
+  function clamp(n: number, min: number, max: number): number {
+    return Math.max(min, Math.min(max, n));
+  }
+
   const model = dominance ?? buildDominanceFromComponents({ score });
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
   const bearPctExact = 100 - bullPctExact;
-  const bullPct = Number(bullPctExact.toFixed(1));
-  const bearPct = Number(bearPctExact.toFixed(1));
+  const realBullPct = Number(bullPctExact.toFixed(1));
+  const realBearPct = Number(bearPctExact.toFixed(1));
   const bullSum = model.bullSum;
   const bearSum = model.bearSum;
-  const edge = Number((bullPctExact - bearPctExact).toFixed(1));
-  const leaning = model.leaning;
+  const realEdge = Number((bullPctExact - bearPctExact).toFixed(1));
+  const [displayBullPct, setDisplayBullPct] = useState(realBullPct);
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    setDisplayBullPct(realBullPct);
+  }, [realBullPct]);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const sync = () => setReducedMotion(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  useEffect(() => {
+    if (reducedMotion) return;
+    let active = true;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+
+    const tick = () => {
+      if (!active) return;
+      setDisplayBullPct((prev) => {
+        const baseline = realBullPct;
+        const envelope = 0.8;
+        const pull = (baseline - prev) * 0.25;
+        const randomStep = (Math.random() * 0.3 + 0.1) * (Math.random() < 0.5 ? -1 : 1);
+        const next = clamp(prev + pull + randomStep, baseline - envelope, baseline + envelope);
+        return Number(clamp(next, 0, 100).toFixed(1));
+      });
+
+      const nextMs = 3000 + Math.floor(Math.random() * 2000); // 3-5 sec cadence
+      timer = setTimeout(tick, nextMs);
+    };
+
+    timer = setTimeout(tick, 3200);
+    return () => {
+      active = false;
+      if (timer) clearTimeout(timer);
+    };
+  }, [realBullPct, reducedMotion]);
+
+  const bullPct = useMemo(
+    () => (reducedMotion ? realBullPct : Number(displayBullPct.toFixed(1))),
+    [displayBullPct, realBullPct, reducedMotion],
+  );
+  const bearPct = Number((100 - bullPct).toFixed(1));
+  const edge = Number((bullPct - bearPct).toFixed(1));
+  const leaning = edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral";
   const magnitude = model.magnitude;
   const BULL_FORCES: DominanceForce[] = model.bullForces;
   const BEAR_FORCES: DominanceForce[] = model.bearForces;
   const leaningLabel =
     leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
-  const shownScore = Math.round(score ?? 50);
-  const shownScorePrecise = Number((score ?? 50).toFixed(2));
-  const shownTag = scoreTag ?? "NEUTRAL · LOW";
-  const scoreColor = shownScore >= 65 ? "var(--ok)" : shownScore <= 35 ? "var(--danger)" : "var(--warn)";
   const motionStrength = Math.max(0.28, Math.min(1, 1 - Math.min(Math.abs(edge), 30) / 30));
-  const generatedAt = generatedAtIso
-    ? `${formatGmtPlus1DateTime(generatedAtIso, {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })} ${GMT_PLUS_ONE_LABEL}`
-    : "—";
-  const generatedAtCompact = generatedAtIso
-    ? `${formatGmtPlus1DateTime(generatedAtIso, {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })} ${GMT_PLUS_ONE_LABEL}`
-    : "—";
-  const nextRefreshAt = nextRefreshIso
-    ? `${formatGmtPlus1DateTime(nextRefreshIso, {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      })} ${GMT_PLUS_ONE_LABEL}`
-    : "—";
-  const lastChangedAt = scoreLastChangedIso
-    ? `${formatGmtPlus1DateTime(scoreLastChangedIso, {
-        day: "2-digit",
-        month: "short",
-        hour: "2-digit",
-        minute: "2-digit",
-      })} ${GMT_PLUS_ONE_LABEL}`
-    : "—";
 
   return (
     <div className="w-card accent">
@@ -83,88 +126,6 @@ export function Battlefield({
       </div>
 
       <div className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength }}>
-        <div
-          className="bf-score-chip"
-          style={{
-            marginBottom: 12,
-            display: "inline-flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 10,
-            padding: "10px 14px",
-            border: `1px solid ${scoreColor}66`,
-            borderRadius: 8,
-            background: `${scoreColor}1a`,
-            maxWidth: "100%",
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              letterSpacing: "0.14em",
-              color: "var(--text-3)",
-              textTransform: "uppercase",
-            }}
-          >
-            Score
-          </span>
-          <span
-            className="mono"
-            style={{
-              fontSize: 30,
-              lineHeight: 1,
-              fontWeight: 700,
-              color: scoreColor,
-            }}
-          >
-            {shownScorePrecise.toFixed(2)}
-          </span>
-          <span
-            className="mono"
-            style={{
-              fontSize: 10,
-              color: "var(--text-2)",
-              letterSpacing: "0.04em",
-              textTransform: "uppercase",
-              padding: "3px 6px",
-              borderRadius: 4,
-              border: "1px solid var(--line-1)",
-              background: "var(--bg-2)",
-            }}
-          >
-            Generated {generatedAtCompact}
-          </span>
-          <span
-            style={{
-              fontSize: 13,
-              letterSpacing: "0.06em",
-              fontWeight: 600,
-              color: scoreColor,
-              textTransform: "uppercase",
-            }}
-          >
-            {shownTag}
-          </span>
-          <div
-            style={{
-              flexBasis: "100%",
-              borderTop: "1px solid var(--line-1)",
-              marginTop: 4,
-              paddingTop: 6,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: "6px 14px",
-              fontSize: 10,
-              letterSpacing: "0.04em",
-              color: "var(--text-2)",
-              fontFamily: "Geist Mono, monospace",
-            }}
-          >
-            <span>LAST CHANGED · {lastChangedAt}</span>
-            <span>GENERATED · {generatedAt}</span>
-            <span>NEXT REFRESH · {nextRefreshAt}</span>
-          </div>
-        </div>
         <div className="bf-hero-top">
           <div className="bf-hero-side bull">
             <div className="bf-hero-lbl">Supporting Gold</div>
@@ -243,13 +204,16 @@ export function Battlefield({
         <div className="bf-side bull">
           <div className="bf-head">
             <div className="bf-label bull">Supporting Forces</div>
-            <div className="bf-dom bull mono">+{bullSum}</div>
+            <div className="bf-dom bull mono">+{bullSum.toFixed(2)}</div>
           </div>
           <div className="bf-forces">
             {BULL_FORCES.map((f, i) => (
               <div key={i} className={`bf-force ${f.strong ? "strong" : ""}`}>
-                <div className="bf-force-name">{f.name}</div>
-                <div className="bf-force-wt bull">+{f.weight}</div>
+                <div className="bf-force-main">
+                  <div className="bf-force-name">{f.name}</div>
+                  <div className="bf-force-desc">{forceExplanation(f.name, "bull")}</div>
+                </div>
+                <div className="bf-force-wt bull">+{f.weight.toFixed(3)}</div>
               </div>
             ))}
           </div>
@@ -257,13 +221,16 @@ export function Battlefield({
         <div className="bf-side bear">
           <div className="bf-head">
             <div className="bf-label bear">Opposing Forces</div>
-            <div className="bf-dom bear mono">−{bearSum}</div>
+            <div className="bf-dom bear mono">−{bearSum.toFixed(2)}</div>
           </div>
           <div className="bf-forces">
             {BEAR_FORCES.map((f, i) => (
               <div key={i} className={`bf-force ${f.strong ? "strong" : ""}`}>
-                <div className="bf-force-name">{f.name}</div>
-                <div className="bf-force-wt bear">−{f.weight}</div>
+                <div className="bf-force-main">
+                  <div className="bf-force-name">{f.name}</div>
+                  <div className="bf-force-desc">{forceExplanation(f.name, "bear")}</div>
+                </div>
+                <div className="bf-force-wt bear">−{f.weight.toFixed(3)}</div>
               </div>
             ))}
           </div>
