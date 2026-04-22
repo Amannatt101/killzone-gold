@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { TWEAK_DEFAULTS_V2, V2_ACCENTS, type AccentKey } from "./accent";
-import { formatNextRefresh, type DominanceResult } from "./score-utils";
+import { formatNextRefresh } from "./score-utils";
 import { Battlefield } from "./widgets/Battlefield";
 import { Invalidation } from "./widgets/Invalidation";
 import { KillzoneTiming } from "./widgets/KillzoneTiming";
@@ -39,7 +39,26 @@ export type IntelligenceDashboardProps = {
     body: ReactNode;
   };
   scoreLastChangedIso?: string;
-  dominance?: DominanceResult;
+  dominanceModes?: {
+    macro: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+    };
+    intraday: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "15m/1h";
+      lastSampleAt: string;
+    };
+  };
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -64,7 +83,7 @@ export function IntelligenceDashboard({
   narrativeSlides,
   positioning,
   scoreLastChangedIso,
-  dominance,
+  dominanceModes,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
@@ -222,7 +241,7 @@ export function IntelligenceDashboard({
               <div className="v2-inner">
                 <Battlefield
                   score={topbar.score}
-                  dominance={dominance}
+                  dominanceModes={dominanceModes}
                 />
                 <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
                 <ScoreHistory days={hourlySentimentDays} />

@@ -2,15 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import {
   buildDominanceFromComponents,
   type DominanceForce,
-  type DominanceResult,
 } from "../score-utils";
 
 export function Battlefield({
   score,
-  dominance,
+  dominanceModes,
 }: {
   score?: number;
-  dominance?: DominanceResult;
+  dominanceModes?: {
+    macro?: {
+      components?: { name: string; score: number; weight: number; contribution?: number }[];
+    };
+    intraday?: {
+      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      window?: string;
+      lastSampleAt?: string;
+    };
+  };
 }) {
   function normalizeForceName(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
@@ -53,7 +61,12 @@ export function Battlefield({
     return Math.max(min, Math.min(max, n));
   }
 
-  const model = dominance ?? buildDominanceFromComponents({ score });
+  const [mode, setMode] = useState<"macro" | "intraday">("macro");
+  const selectedComponents =
+    mode === "intraday"
+      ? dominanceModes?.intraday?.components
+      : dominanceModes?.macro?.components;
+  const model = buildDominanceFromComponents({ score, components: selectedComponents });
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
   const bearPctExact = 100 - bullPctExact;
@@ -122,7 +135,51 @@ export function Battlefield({
     <div className="w-card accent">
       <div className="w-head">
         <div className="title">Bull vs Bear · Dominance</div>
-        <div className="meta">WEIGHTED BY INSTITUTIONAL FLOW</div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setMode("macro")}
+            style={{
+              border: "1px solid var(--line-1)",
+              background: mode === "macro" ? "var(--bg-3)" : "var(--bg-2)",
+              color: mode === "macro" ? "var(--text-1)" : "var(--text-3)",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "3px 7px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Macro
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("intraday")}
+            style={{
+              border: "1px solid var(--line-1)",
+              background: mode === "intraday" ? "var(--bg-3)" : "var(--bg-2)",
+              color: mode === "intraday" ? "var(--text-1)" : "var(--text-3)",
+              fontSize: 10,
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+              padding: "3px 7px",
+              borderRadius: 4,
+              cursor: "pointer",
+            }}
+          >
+            Intraday
+          </button>
+          <div className="meta">
+            {mode === "intraday" ? "FAST 15M/1H XAUUSD FLOW" : "WEIGHTED BY INSTITUTIONAL FLOW"}
+          </div>
+        </div>
       </div>
 
       <div className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength }}>

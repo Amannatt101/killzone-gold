@@ -57,6 +57,7 @@ interface GoldPrice {
 interface GoldFetchResult {
   dailyPrices: GoldPrice[];
   hourlyPrices: GoldPrice[];
+  fifteenMinPrices: GoldPrice[];
   spotPrice: number;
   futuresPrice: number;
   spotSource: string;
@@ -89,8 +90,10 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
   const now = Math.floor(Date.now() / 1000);
   const sixMonthsAgo = now - 180 * 24 * 3600;
   const sevenDaysAgo = now - 7 * 24 * 3600;
+  const fiveDaysAgo = now - 5 * 24 * 3600;
   let dailyPrices: GoldPrice[] = [];
   let hourlyPrices: GoldPrice[] = [];
+  let fifteenMinPrices: GoldPrice[] = [];
   let yahooSpot: number | null = null;
 
   try {
@@ -135,6 +138,28 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
     console.warn("[Gold] Yahoo hourly fetch failed:", err);
   }
 
+  // 2c. Fast intraday history (15m) for trader mode
+  try {
+    const fastUrl = `https://query1.finance.yahoo.com/v8/finance/chart/GC=F?period1=${fiveDaysAgo}&period2=${now}&interval=15m`;
+    const resp = await fetch(fastUrl, { headers: { "User-Agent": ua } });
+    if (resp.ok) {
+      const json = (await resp.json()) as any;
+      const result = json.chart?.result?.[0];
+      if (result) {
+        const timestamps: number[] = result.timestamp || [];
+        const closes: number[] = result.indicators?.quote?.[0]?.close || [];
+        fifteenMinPrices = timestamps
+          .map((ts, i) => ({
+            date: new Date(ts * 1000).toISOString(),
+            close: closes[i] || 0,
+          }))
+          .filter((p) => p.close > 0);
+      }
+    }
+  } catch (err) {
+    console.warn("[Gold] Yahoo 15m fetch failed:", err);
+  }
+
   // 3. Use spot price from gold-api.com (true XAU/USD), fall back to Yahoo GC=F
   const currentPrice = spotPrice || yahooSpot || dailyPrices.at(-1)?.close || 0;
   const source = spotPrice ? spotSource : (yahooSpot ? "Yahoo GC=F" : "historical");
@@ -158,6 +183,7 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
   return {
     dailyPrices,
     hourlyPrices,
+    fifteenMinPrices,
     spotPrice: spotPrice || currentPrice,
     futuresPrice: yahooSpot || currentPrice,
     spotSource: spotPrice ? spotSource : "Yahoo GC=F",
@@ -296,6 +322,16 @@ export interface LiveScoreData {
 
   // Composite
   goldSafeHavenScore: number;
+  intradayDominance: {
+    components: {
+      name: string;
+      score: number;
+      weight: number;
+      contribution: number;
+    }[];
+    window: "15m/1h";
+    lastSampleAt: string;
+  };
 
   // Metadata
   lastFetched: string; // ISO timestamp
@@ -648,6 +684,7 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     const goldSpot = goldResult.spotPrice;
     const goldFutures = goldResult.futuresPrice;
     const goldSpotSource = goldResult.spotSource;
+    const goldFast = goldResult.fifteenMinPrices;
 
     // Mark which sources succeeded
     if (realYieldData.length > 0) sources.fred = true;
@@ -752,6 +789,51 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     const momentumScore =
       0.35 * trendScore + 0.25 * dailyImpulseScore + 0.4 * shortTermImpulseScore;
 
+    // Intraday trader mode (fast 15m/1h reactivity)
+    const closestIntradayAtOrBefore = (series: GoldPrice[], minutesBack: number): number | null => {
+      const target = Date.now() - minutesBack * 60 * 1000;
+      for (let i = series.length - 1; i >= 0; i--) {
+        const ts = new Date(series[i].date).getTime();
+        if (ts <= target) return series[i].close;
+      }
+      return null;
+    };
+
+    const px15m = closestIntradayAtOrBefore(goldFast, 15);
+    const px1h = closestIntradayAtOrBefore(goldFast, 60) ?? closestPriceAtOrBefore(1);
+    const px4h = closestIntradayAtOrBefore(goldFast, 240) ?? closestPriceAtOrBefore(4);
+    const px8h = closestPriceAtOrBefore(8);
+
+    const roc15m = px15m ? ((latestGold - px15m) / px15m) * 100 : 0;
+    const roc1h = px1h ? ((latestGold - px1h) / px1h) * 100 : 0;
+    const roc4h = px4h ? ((latestGold - px4h) / px4h) * 100 : 0;
+    const roc8h = px8h ? ((latestGold - px8h) / px8h) * 100 : 0;
+    const accel = roc1h - roc4h;
+
+    const xauImpulseScore = clamp(50 + roc15m * 80 + roc1h * 45, 0, 100);
+    const xauAccelerationScore = clamp(50 + accel * 55 + roc4h * 20, 0, 100);
+    const usdPulseScore = clamp(50 - latestUSDRoc * 45, 0, 100);
+    const yieldPulseScore = clamp(50 - latestRYChange * 30, 0, 100);
+    const riskPulseScore = clamp(
+      0.6 * clamp(50 + (latestVIX - (vixData.at(-2)?.value ?? latestVIX)) * 7, 0, 100) +
+        0.4 * clamp(50 + (latestHY - (hyData.at(-2)?.value ?? latestHY)) * 20, 0, 100),
+      0,
+      100,
+    );
+
+    const amplifyIntraday = (s: number) => clamp(50 + (s - 50) * 1.2, 0, 100);
+    const intradayComponents = [
+      { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.42 },
+      { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.24 },
+      { name: "USD Pulse", score: usdPulseScore, weight: 0.14 },
+      { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.10 },
+      { name: "Risk Pulse", score: riskPulseScore, weight: 0.10 },
+    ].map((c) => ({
+      ...c,
+      contribution: amplifyIntraday(c.score) * c.weight,
+      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
+    }));
+
     // Composite Score (tuned: slightly higher weight on momentum responsiveness)
     const goldSafeHavenScore =
       0.25 * ryScore +
@@ -782,6 +864,11 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       inflationScore: Math.round(inflationScore * 10) / 10,
       momentumScore: Math.round(momentumScore * 10) / 10,
       goldSafeHavenScore: Math.round(goldSafeHavenScore * 10) / 10,
+      intradayDominance: {
+        components: intradayComponents,
+        window: "15m/1h",
+        lastSampleAt: new Date().toISOString(),
+      },
       lastFetched: now.toISOString(),
       nextRefresh: nextRefresh.toISOString(),
       dataStatus: sources.fred && sources.yahoo ? "live" : "stale",
@@ -813,6 +900,11 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       ryScore: 50, usdScore: 50, gprScore: 50, cbScore: 50,
       riskoffScore: 50, inflationScore: 50, momentumScore: 50,
       goldSafeHavenScore: 50,
+      intradayDominance: {
+        components: [],
+        window: "15m/1h",
+        lastSampleAt: now.toISOString(),
+      },
       lastFetched: now.toISOString(),
       nextRefresh: new Date(now.getTime() + REFRESH_INTERVAL_MS).toISOString(),
       dataStatus: "error",

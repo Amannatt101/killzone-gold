@@ -224,6 +224,71 @@ function londonDayLabel(dateKey: string): string {
   });
 }
 
+function londonHourNow(date: Date = new Date()): number {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  return Number.isFinite(hour) ? hour : 0;
+}
+
+function londonDateHourFromIso(iso: string): { londonDate: string; londonHour: string } {
+  const d = new Date(iso);
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(d);
+  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+  return { londonDate: `${year}-${month}-${day}`, londonHour: `${hour}:00` };
+}
+
+function dominanceBullBearFromLogComponents(components: {
+  ry: number;
+  usd: number;
+  gpr: number;
+  cb: number;
+  riskoff: number;
+  inflation: number;
+  momentum: number;
+}): { bullishPct: number; bearishPct: number } {
+  const rows = [
+    { score: components.ry, weight: 0.25 },
+    { score: components.usd, weight: 0.2 },
+    { score: components.gpr, weight: 0.13 },
+    { score: components.cb, weight: 0.05 },
+    { score: components.riskoff, weight: 0.15 },
+    { score: components.inflation, weight: 0.1 },
+    { score: components.momentum, weight: 0.12 },
+  ];
+
+  let bullSum = 0;
+  let bearSum = 0;
+  for (const c of rows) {
+    const centered = (c.score - 50) / 50;
+    const deadZone = 0.06;
+    const adjusted = Math.abs(centered) < deadZone ? 0 : centered;
+    const signed = Math.max(-c.weight * 0.85, Math.min(c.weight * 0.85, adjusted * c.weight));
+    if (signed > 0) bullSum += signed;
+    if (signed < 0) bearSum += Math.abs(signed);
+  }
+
+  const total = bullSum + bearSum;
+  if (total <= 0) return { bullishPct: 50, bearishPct: 50 };
+  const bullishPct = Math.round((bullSum / total) * 1000) / 10;
+  return { bullishPct, bearishPct: Math.round((100 - bullishPct) * 10) / 10 };
+}
+
 function fallbackNewsImage(source: string): string {
   const s = source.toLowerCase();
   if (s.includes("reuters")) {
@@ -647,10 +712,19 @@ export async function registerRoutes(
         { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
         { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
       ];
+      const dominanceModes = {
+        macro: { components },
+        intraday: {
+          components: live.intradayDominance.components,
+          window: live.intradayDominance.window,
+          lastSampleAt: live.intradayDominance.lastSampleAt,
+        },
+      };
 
       res.json({
         current,
         components,
+        dominanceModes,
         compositeScore: live.goldSafeHavenScore,
         regime: getRegimeLabel(live.goldSafeHavenScore),
         lastUpdated: current.date,
@@ -675,9 +749,23 @@ export async function registerRoutes(
           { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
           { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
         ];
+        const dominanceModes = {
+          macro: { components },
+          intraday: {
+            components: components.map((c) => ({
+              name: c.name,
+              score: c.score,
+              weight: c.weight,
+              contribution: c.contribution,
+            })),
+            window: "15m/1h" as const,
+            lastSampleAt: new Date().toISOString(),
+          },
+        };
         res.json({
           current,
           components,
+          dominanceModes,
           compositeScore: current.goldSafeHavenScore,
           regime: getRegimeLabel(current.goldSafeHavenScore),
           lastUpdated: current.date,
@@ -720,9 +808,10 @@ export async function registerRoutes(
       const daysParam = Number(req.query.days);
       const days = Number.isFinite(daysParam)
         ? Math.max(1, Math.min(14, Math.floor(daysParam)))
-        : 7;
+        : 2;
 
       const todayLondon = londonDateKey(new Date());
+      const yesterdayLondon = londonDateKey(new Date(Date.now() - 24 * 60 * 60 * 1000));
       const dates: string[] = [];
       for (let i = 0; i < days; i++) {
         const d = new Date();
@@ -755,14 +844,71 @@ export async function registerRoutes(
         grouped.set(snapshot.londonDate, rows);
       }
 
+      // Fallback source for missing hourly snapshots: earliest score-log reading
+      // within each London hour bucket.
+      const scoreLogGrouped = new Map<
+        string,
+        {
+          timestamp: string;
+          londonHour: string;
+          bullishPct: number;
+          bearishPct: number;
+          score: number;
+        }[]
+      >();
+      for (const entry of getScoreLog()) {
+        const { londonDate, londonHour } = londonDateHourFromIso(entry.timestamp);
+        if (!allowedDateSet.has(londonDate)) continue;
+        const rows = scoreLogGrouped.get(londonDate) ?? [];
+        const existing = rows.find((r) => r.londonHour === londonHour);
+        const bb = dominanceBullBearFromLogComponents(entry.components);
+        if (!existing) {
+          rows.push({
+            timestamp: entry.timestamp,
+            londonHour,
+            bullishPct: bb.bullishPct,
+            bearishPct: bb.bearishPct,
+            score: entry.score,
+          });
+        } else if (new Date(entry.timestamp).getTime() < new Date(existing.timestamp).getTime()) {
+          existing.timestamp = entry.timestamp;
+          existing.bullishPct = bb.bullishPct;
+          existing.bearishPct = bb.bearishPct;
+          existing.score = entry.score;
+        }
+        scoreLogGrouped.set(londonDate, rows);
+      }
+
+      const currentLondonHour = londonHourNow();
+      const sessionStartHour = 6;
+      const sessionEndHour = 18;
+
       const daysOut = dates
         .map((date) => {
-          const existingByHour = new Map(
-            (grouped.get(date) ?? []).map((p) => [p.londonHour, p]),
-          );
-          const points = Array.from({ length: 24 }, (_, hour) => {
+          const mergedRows = [...(grouped.get(date) ?? []), ...(scoreLogGrouped.get(date) ?? [])]
+            .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+          const byHour = new Map<string, (typeof mergedRows)[number]>();
+          for (const row of mergedRows) {
+            if (!byHour.has(row.londonHour)) byHour.set(row.londonHour, row);
+          }
+          const orderedByHour = Array.from(byHour.entries())
+            .map(([, row]) => ({ ...row }))
+            .sort((a, b) => a.londonHour.localeCompare(b.londonHour));
+
+          const dayEndHour =
+            date === todayLondon
+              ? Math.max(sessionStartHour, Math.min(currentLondonHour, sessionEndHour))
+              : sessionEndHour;
+          const pointCount = Math.max(1, dayEndHour - sessionStartHour + 1);
+          const points = Array.from({ length: pointCount }, (_, i) => {
+            const hour = i + sessionStartHour;
             const time = `${String(hour).padStart(2, "0")}:00`;
-            const p = existingByHour.get(time);
+            const exact = byHour.get(time);
+            const prior = [...orderedByHour]
+              .reverse()
+              .find((p) => p.londonHour < time);
+            const next = orderedByHour.find((p) => p.londonHour > time);
+            const p = exact ?? prior ?? next ?? null;
             return {
               time,
               bullishPct: p?.bullishPct ?? null,
@@ -774,7 +920,12 @@ export async function registerRoutes(
 
           return {
             date,
-            label: date === todayLondon ? "Today" : londonDayLabel(date),
+            label:
+              date === todayLondon
+                ? "Today"
+                : date === yesterdayLondon
+                  ? "Yesterday"
+                  : londonDayLabel(date),
             points,
           };
         });

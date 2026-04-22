@@ -39,6 +39,18 @@ export type MonthlyData = z.infer<typeof monthlyDataSchema>;
 export const scoreResponseSchema = z.object({
   current: monthlyDataSchema,
   components: z.array(componentScoreSchema),
+  dominanceModes: z
+    .object({
+      macro: z.object({
+        components: z.array(componentScoreSchema),
+      }),
+      intraday: z.object({
+        components: z.array(componentScoreSchema),
+        window: z.literal("15m/1h"),
+        lastSampleAt: z.string(),
+      }),
+    })
+    .optional(),
   compositeScore: z.number(),
   regime: z.string(),
   lastUpdated: z.string(),
@@ -67,7 +79,7 @@ export const hourlySentimentPointSchema = z.object({
   time: z.string(), // HH:00 London
   bullishPct: z.number().nullable(),
   bearishPct: z.number().nullable(),
-  score: z.number().nullable(),
+  score: z.number().nullable(), // composite score shown per hour
   capturedAt: z.string().nullable(), // ISO timestamp
 });
 

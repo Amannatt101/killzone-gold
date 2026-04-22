@@ -4,7 +4,7 @@ import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDash
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { MarketNarrativeSlide } from "@/components/killzone-v2/widgets/LiveMarketNarrativeCarousel";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
-import { buildDominanceFromComponents, scoreLabel } from "@/components/killzone-v2/score-utils";
+import { scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
 import { apiRequest } from "@/lib/queryClient";
 import { REACTIVE_REFRESH_MS } from "@/lib/refresh";
@@ -22,6 +22,26 @@ type ScoreApi = {
     weight: number;
     contribution: number;
   }[];
+  dominanceModes?: {
+    macro: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+    };
+    intraday: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "15m/1h";
+      lastSampleAt: string;
+    };
+  };
   current?: {
     realYield?: number;
     vix?: number;
@@ -34,6 +54,13 @@ type ScoreApi = {
     yahoo?: boolean;
     gpr?: boolean;
   };
+};
+
+type DominanceComponent = {
+  name: string;
+  score: number;
+  weight: number;
+  contribution: number;
 };
 
 type HourlySentimentApi = {
@@ -194,7 +221,7 @@ export default function IntelligenceDashboardPage() {
   });
 
   const { data: hourlySentimentApi } = useQuery<HourlySentimentApi>({
-    queryKey: ["/api/hourly-sentiment?days=7"],
+    queryKey: ["/api/hourly-sentiment?days=2"],
     refetchInterval: REACTIVE_REFRESH_MS,
     staleTime: 60 * 1000,
     retry: false,
@@ -213,6 +240,54 @@ export default function IntelligenceDashboardPage() {
   });
 
   const signal: SignalData = (liveSignal ?? (bakedSignal as SignalData)) as SignalData;
+
+  const dominanceModesForUI = useMemo(() => {
+    const macroFromApi = scoreApi?.dominanceModes?.macro?.components;
+    const intradayFromApi = scoreApi?.dominanceModes?.intraday?.components;
+    const base = macroFromApi?.length ? macroFromApi : (scoreApi?.components ?? []);
+
+    const macroComponents: DominanceComponent[] = base.map((c) => ({
+      name: c.name,
+      score: c.score,
+      weight: c.weight,
+      contribution: c.contribution ?? c.score * c.weight,
+    }));
+
+    // Fallback intraday transform guarantees visual divergence from macro
+    // when backend intraday payload is temporarily unavailable/stale.
+    const intradayComponents: DominanceComponent[] =
+      intradayFromApi?.length
+        ? intradayFromApi.map((c) => ({
+            name: c.name,
+            score: c.score,
+            weight: c.weight,
+            contribution: c.contribution ?? c.score * c.weight,
+          }))
+        : macroComponents.map((c) => {
+            const centered = c.score - 50;
+            const amplified = Math.max(0, Math.min(100, 50 + centered * 1.35));
+            const isFastFactor = /momentum|usd|yield|risk/i.test(c.name);
+            const intradayWeight = isFastFactor ? c.weight * 1.25 : c.weight * 0.8;
+            return {
+              name: `${c.name} (Intraday)`,
+              score: Math.round(amplified * 10) / 10,
+              weight: Math.round(intradayWeight * 1000) / 1000,
+              contribution: (Math.round(amplified * 10) / 10) * (Math.round(intradayWeight * 1000) / 1000),
+            };
+          });
+
+    return {
+      macro: { components: macroComponents },
+      intraday: {
+        components: intradayComponents,
+        window: scoreApi?.dominanceModes?.intraday?.window ?? ("15m/1h" as const),
+        lastSampleAt:
+          scoreApi?.dominanceModes?.intraday?.lastSampleAt ??
+          scoreApi?.lastFetched ??
+          new Date().toISOString(),
+      },
+    };
+  }, [scoreApi]);
 
   const hourlySentimentDays = useMemo(
     () =>
@@ -385,15 +460,6 @@ export default function IntelligenceDashboardPage() {
     };
   }, [signal, regimeLabel, scoreLogApi]);
 
-  const dominance = useMemo(
-    () =>
-      buildDominanceFromComponents({
-        score: signal.score,
-        components: scoreApi?.components,
-      }),
-    [signal.score, scoreApi?.components],
-  );
-
   const scoreLastChangedIso = useMemo(() => {
     const entries = scoreLogApi?.entries;
     if (!entries?.length) return signal.meta.lastFetched;
@@ -437,7 +503,7 @@ export default function IntelligenceDashboardPage() {
       narrativeSlides={narrativeSlides}
       positioning={positioning}
       scoreLastChangedIso={scoreLastChangedIso}
-      dominance={dominance}
+      dominanceModes={dominanceModesForUI}
       topbar={topbar}
       topbarExtra={
         <>
