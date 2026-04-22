@@ -1,4 +1,3 @@
-import { useEffect, useMemo, useState } from "react";
 import {
   buildDominanceFromComponents,
   type DominanceForce,
@@ -57,205 +56,73 @@ export function Battlefield({
       : "This factor is currently contributing to pressure on gold, adding weight to the opposing side of the balance.";
   }
 
-  function clamp(n: number, min: number, max: number): number {
-    return Math.max(min, Math.min(max, n));
-  }
-
-  const [mode, setMode] = useState<"macro" | "intraday">("macro");
-  const selectedComponents =
-    mode === "intraday"
-      ? dominanceModes?.intraday?.components
-      : dominanceModes?.macro?.components;
-  const model = buildDominanceFromComponents({ score, components: selectedComponents });
+  const macroModel = buildDominanceFromComponents({
+    score,
+    components: dominanceModes?.macro?.components,
+  });
+  const intradayModel = buildDominanceFromComponents({
+    score,
+    components: dominanceModes?.intraday?.components,
+  });
+  const model = macroModel;
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
   const bearPctExact = 100 - bullPctExact;
-  const realBullPct = Number(bullPctExact.toFixed(1));
-  const realBearPct = Number(bearPctExact.toFixed(1));
   const bullSum = model.bullSum;
   const bearSum = model.bearSum;
-  const realEdge = Number((bullPctExact - bearPctExact).toFixed(1));
-  const [displayBullPct, setDisplayBullPct] = useState(realBullPct);
-  const [reducedMotion, setReducedMotion] = useState(false);
-
-  useEffect(() => {
-    setDisplayBullPct(realBullPct);
-  }, [realBullPct]);
-
-  useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReducedMotion(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    return () => media.removeEventListener("change", sync);
-  }, []);
-
-  useEffect(() => {
-    if (reducedMotion) return;
-    let active = true;
-    let timer: ReturnType<typeof setTimeout> | null = null;
-
-    const tick = () => {
-      if (!active) return;
-      setDisplayBullPct((prev) => {
-        const baseline = realBullPct;
-        const envelope = 0.8;
-        const pull = (baseline - prev) * 0.25;
-        const randomStep = (Math.random() * 0.3 + 0.1) * (Math.random() < 0.5 ? -1 : 1);
-        const next = clamp(prev + pull + randomStep, baseline - envelope, baseline + envelope);
-        return Number(clamp(next, 0, 100).toFixed(1));
-      });
-
-      const nextMs = 3000 + Math.floor(Math.random() * 2000); // 3-5 sec cadence
-      timer = setTimeout(tick, nextMs);
-    };
-
-    timer = setTimeout(tick, 3200);
-    return () => {
-      active = false;
-      if (timer) clearTimeout(timer);
-    };
-  }, [realBullPct, reducedMotion]);
-
-  const bullPct = useMemo(
-    () => (reducedMotion ? realBullPct : Number(displayBullPct.toFixed(1))),
-    [displayBullPct, realBullPct, reducedMotion],
-  );
-  const bearPct = Number((100 - bullPct).toFixed(1));
-  const edge = Number((bullPct - bearPct).toFixed(1));
-  const leaning = edge > 0 ? "bull" : edge < 0 ? "bear" : "neutral";
-  const magnitude = model.magnitude;
   const BULL_FORCES: DominanceForce[] = model.bullForces;
   const BEAR_FORCES: DominanceForce[] = model.bearForces;
-  const leaningLabel =
-    leaning === "bull" ? "LEANING BULLISH" : leaning === "bear" ? "LEANING BEARISH" : "BALANCED";
-  const motionStrength = Math.max(0.28, Math.min(1, 1 - Math.min(Math.abs(edge), 30) / 30));
+  const motionStrength = 0.5;
 
   return (
     <div className="w-card accent">
       <div className="w-head">
         <div className="title">Bull vs Bear · Dominance</div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <button
-            type="button"
-            onClick={() => setMode("macro")}
-            style={{
-              border: "1px solid var(--line-1)",
-              background: mode === "macro" ? "var(--bg-3)" : "var(--bg-2)",
-              color: mode === "macro" ? "var(--text-1)" : "var(--text-3)",
-              fontSize: 10,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "3px 7px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Macro
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode("intraday")}
-            style={{
-              border: "1px solid var(--line-1)",
-              background: mode === "intraday" ? "var(--bg-3)" : "var(--bg-2)",
-              color: mode === "intraday" ? "var(--text-1)" : "var(--text-3)",
-              fontSize: 10,
-              letterSpacing: "0.08em",
-              textTransform: "uppercase",
-              padding: "3px 7px",
-              borderRadius: 4,
-              cursor: "pointer",
-            }}
-          >
-            Intraday
-          </button>
-          <div className="meta">
-            {mode === "intraday" ? "FAST 15M/1H XAUUSD FLOW" : "WEIGHTED BY INSTITUTIONAL FLOW"}
-          </div>
-        </div>
+        <div className="meta">MACRO VS INTRADAY</div>
       </div>
-
-      <div className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength }}>
-        <div className="bf-hero-top">
-          <div className="bf-hero-side bull">
-            <div className="bf-hero-lbl">Supporting Gold</div>
-            <div className="bf-hero-pct mono">{bullPct.toFixed(1)}%</div>
-          </div>
-          <div className={`bf-hero-verdict ${leaning} bf-live-verdict`}>
-            <div className="bf-hero-verdict-arrow">
-              {leaning === "bull" && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M5 12h14M13 6l6 6-6 6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-              {leaning === "bear" && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path
-                    d="M19 12H5M11 6l-6 6 6 6"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              )}
-              {leaning === "neutral" && (
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-                  <path d="M4 9h16M4 15h16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-              )}
+      {[{ key: "macro", label: "Macro", m: macroModel }, { key: "intraday", label: "Intraday", m: intradayModel }].map(({ key, label, m }) => {
+        const mBull = Number(m.bullPct.toFixed(1));
+        const mBear = Number((100 - mBull).toFixed(1));
+        const mEdge = Number((mBull - mBear).toFixed(1));
+        const mLeaning = mEdge > 0 ? "bull" : mEdge < 0 ? "bear" : "neutral";
+        const mLeaningLabel =
+          mLeaning === "bull" ? "LEANING BULLISH" : mLeaning === "bear" ? "LEANING BEARISH" : "BALANCED";
+        return (
+          <div key={key} className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength, marginBottom: 10 }}>
+            <div style={{ fontSize: 10, letterSpacing: "0.1em", color: "var(--text-3)", textTransform: "uppercase", marginBottom: 6 }}>
+              {label}
             </div>
-            <div className="bf-hero-verdict-text">
-              <div className="bf-hero-verdict-lbl">{leaningLabel}</div>
-              <div className="bf-hero-verdict-edge mono">
-                {edge > 0 ? "+" : ""}
-                {edge.toFixed(1)} pt edge · {magnitude}
+            <div className="bf-hero-top">
+              <div className="bf-hero-side bull">
+                <div className="bf-hero-lbl">Supporting Gold</div>
+                <div className="bf-hero-pct mono">{mBull.toFixed(1)}%</div>
+              </div>
+              <div className={`bf-hero-verdict ${mLeaning} bf-live-verdict`}>
+                <div className="bf-hero-verdict-text">
+                  <div className="bf-hero-verdict-lbl">{mLeaningLabel}</div>
+                  <div className="bf-hero-verdict-edge mono">
+                    {mEdge > 0 ? "+" : ""}
+                    {mEdge.toFixed(1)} pt edge · {m.magnitude}
+                  </div>
+                </div>
+              </div>
+              <div className="bf-hero-side bear">
+                <div className="bf-hero-lbl">Opposing Gold</div>
+                <div className="bf-hero-pct mono">{mBear.toFixed(1)}%</div>
               </div>
             </div>
+            <div className="bf-hero-bar">
+              <div className="bull bf-live-fill" style={{ width: `${mBull}%` }}>
+                <span className="bf-hero-bar-lbl">{mBull.toFixed(1)}%</span>
+              </div>
+              <div className="bear bf-live-fill" style={{ width: `${mBear}%` }}>
+                <span className="bf-hero-bar-lbl">{mBear.toFixed(1)}%</span>
+              </div>
+              <div className="bf-hero-bar-center" />
+            </div>
           </div>
-          <div className="bf-hero-side bear">
-            <div className="bf-hero-lbl">Opposing Gold</div>
-            <div className="bf-hero-pct mono">{bearPct.toFixed(1)}%</div>
-          </div>
-        </div>
-
-        <div className="bf-hero-bar">
-          <div className="bull bf-live-fill" style={{ width: `${bullPct}%` }}>
-            <span className="bf-hero-bar-lbl">{bullPct.toFixed(1)}%</span>
-          </div>
-          <div className="bear bf-live-fill" style={{ width: `${bearPct}%` }}>
-            <span className="bf-hero-bar-lbl">{bearPct.toFixed(1)}%</span>
-          </div>
-          <div className="bf-hero-bar-center" />
-          <div className="bf-hero-bar-marker bf-live-marker" style={{ left: `${bullPct}%` }}>
-            <div className="bf-hero-bar-marker-dot bf-live-dot" />
-          </div>
-        </div>
-
-        <div className="bf-hero-verdict-copy bf-live-copy">
-          Bulls hold a <span className="em">{edge.toFixed(1)}-point edge</span> — a{" "}
-          <span className="em">{magnitude.toLowerCase()} lean</span>{" "}
-          {leaning === "bull"
-            ? "toward support"
-            : leaning === "bear"
-              ? "toward pressure"
-              : "with no clear winner"}
-          . Spread is thin enough that a single yield print could flip dominance.
-        </div>
-      </div>
+        );
+      })}
 
       <div className="battlefield-grid">
         <div className="bf-side bull">

@@ -21,7 +21,8 @@ export type IntelligenceDashboardProps = {
       time: string;
       bullishPct: number | null;
       bearishPct: number | null;
-      score: number | null;
+      macroScore: number | null;
+      intradayScore: number | null;
       capturedAt: string | null;
     }[];
   }[];

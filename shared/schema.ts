@@ -79,7 +79,8 @@ export const hourlySentimentPointSchema = z.object({
   time: z.string(), // HH:00 London
   bullishPct: z.number().nullable(),
   bearishPct: z.number().nullable(),
-  score: z.number().nullable(), // composite score shown per hour
+  macroScore: z.number().nullable(), // macro composite score per hour
+  intradayScore: z.number().nullable(), // intraday composite score per hour
   capturedAt: z.string().nullable(), // ISO timestamp
 });
 

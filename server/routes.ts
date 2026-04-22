@@ -827,7 +827,8 @@ export async function registerRoutes(
           londonHour: string;
           bullishPct: number;
           bearishPct: number;
-          score: number;
+          macroScore: number;
+          intradayScore: number | null;
         }[]
       >();
 
@@ -839,7 +840,8 @@ export async function registerRoutes(
           londonHour: snapshot.londonHour,
           bullishPct: snapshot.bullishPct,
           bearishPct: snapshot.bearishPct,
-          score: snapshot.score,
+          macroScore: snapshot.macroScore,
+          intradayScore: snapshot.intradayScore ?? null,
         });
         grouped.set(snapshot.londonDate, rows);
       }
@@ -853,7 +855,8 @@ export async function registerRoutes(
           londonHour: string;
           bullishPct: number;
           bearishPct: number;
-          score: number;
+          macroScore: number;
+          intradayScore: number | null;
         }[]
       >();
       for (const entry of getScoreLog()) {
@@ -868,13 +871,15 @@ export async function registerRoutes(
             londonHour,
             bullishPct: bb.bullishPct,
             bearishPct: bb.bearishPct,
-            score: entry.score,
+            macroScore: entry.score,
+            intradayScore: null,
           });
         } else if (new Date(entry.timestamp).getTime() < new Date(existing.timestamp).getTime()) {
           existing.timestamp = entry.timestamp;
           existing.bullishPct = bb.bullishPct;
           existing.bearishPct = bb.bearishPct;
-          existing.score = entry.score;
+          existing.macroScore = entry.score;
+          existing.intradayScore = null;
         }
         scoreLogGrouped.set(londonDate, rows);
       }
@@ -913,7 +918,8 @@ export async function registerRoutes(
               time,
               bullishPct: p?.bullishPct ?? null,
               bearishPct: p?.bearishPct ?? null,
-              score: p?.score ?? null,
+              macroScore: p?.macroScore ?? null,
+              intradayScore: p?.intradayScore ?? null,
               capturedAt: p?.timestamp ?? null,
             };
           });

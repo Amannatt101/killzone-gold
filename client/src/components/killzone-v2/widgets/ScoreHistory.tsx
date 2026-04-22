@@ -5,7 +5,8 @@ type HourlySentimentDay = {
     time: string;
     bullishPct: number | null;
     bearishPct: number | null;
-    score: number | null;
+    macroScore: number | null;
+    intradayScore: number | null;
     capturedAt: string | null;
   }[];
 };
@@ -70,7 +71,7 @@ export function ScoreHistory({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "120px 1fr 1fr 1fr",
+                  gridTemplateColumns: "120px 1fr 1fr 1fr 1fr",
                   gap: 8,
                   padding: "8px 10px",
                   borderBottom: "1px solid var(--line-1)",
@@ -81,7 +82,8 @@ export function ScoreHistory({
                 }}
               >
                 <span>Time (London)</span>
-                <span>Score</span>
+                <span>Macro</span>
+                <span>Intraday</span>
                 <span>Bullish</span>
                 <span>Bearish</span>
               </div>
@@ -91,7 +93,7 @@ export function ScoreHistory({
                   key={`${day.date}-${point.time}-${idx}`}
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "120px 1fr 1fr 1fr",
+                    gridTemplateColumns: "120px 1fr 1fr 1fr 1fr",
                     gap: 8,
                     alignItems: "center",
                     padding: "8px 10px",
@@ -105,7 +107,10 @@ export function ScoreHistory({
                     {point.time}
                   </span>
                   <span className="mono" style={{ color: "var(--warn)" }}>
-                    {typeof point.score === "number" ? point.score.toFixed(1) : "—"}
+                    {typeof point.macroScore === "number" ? point.macroScore.toFixed(1) : "—"}
+                  </span>
+                  <span className="mono" style={{ color: "var(--gold-bright)" }}>
+                    {typeof point.intradayScore === "number" ? point.intradayScore.toFixed(1) : "—"}
                   </span>
                   <span className="mono" style={{ color: "var(--bull)" }}>
                     {typeof point.bullishPct === "number" ? `${point.bullishPct.toFixed(1)}%` : "—"}

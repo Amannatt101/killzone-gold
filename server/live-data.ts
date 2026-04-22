@@ -373,7 +373,8 @@ export interface HourlySentimentSnapshot {
   londonHourKey: string; // YYYY-MM-DD HH:00
   bullishPct: number;
   bearishPct: number;
-  score: number;
+  macroScore: number;
+  intradayScore: number | null;
 }
 
 function getSignalLabel(score: number): string {
@@ -430,7 +431,17 @@ function loadHourlySentimentSnapshots(): void {
     const filePath = getHourlySnapshotFilePath();
     if (fs.existsSync(filePath)) {
       const raw = fs.readFileSync(filePath, "utf-8");
-      hourlySentimentSnapshots = JSON.parse(raw);
+      const parsed = JSON.parse(raw) as any[];
+      hourlySentimentSnapshots = parsed.map((row) => ({
+        timestamp: row.timestamp,
+        londonDate: row.londonDate,
+        londonHour: row.londonHour,
+        londonHourKey: row.londonHourKey,
+        bullishPct: row.bullishPct,
+        bearishPct: row.bearishPct,
+        macroScore: Number.isFinite(row.macroScore) ? row.macroScore : (Number.isFinite(row.score) ? row.score : 50),
+        intradayScore: row.intradayScore ?? null,
+      }));
       console.log(
         `[Hourly Sentiment] Loaded ${hourlySentimentSnapshots.length} snapshots from disk`,
       );
@@ -561,7 +572,8 @@ function backfillRecentHourlySnapshotsFromScoreLog(hoursLookback: number = 48): 
       londonHourKey,
       bullishPct,
       bearishPct,
-      score: entry.score,
+      macroScore: entry.score,
+      intradayScore: null,
     });
     inserted++;
   }
@@ -582,6 +594,10 @@ function appendHourlySentimentSnapshot(data: LiveScoreData): void {
   if (hourlySentimentSnapshots.some((s) => s.londonHourKey === londonHourKey)) return;
 
   const { bullishPct, bearishPct } = computeBullBearFromComponents(data);
+  const intradayScore =
+    data.intradayDominance.components.length > 0
+      ? data.intradayDominance.components.reduce((sum, c) => sum + c.contribution, 0)
+      : null;
   hourlySentimentSnapshots.push({
     timestamp: now.toISOString(),
     londonDate,
@@ -589,7 +605,8 @@ function appendHourlySentimentSnapshot(data: LiveScoreData): void {
     londonHourKey,
     bullishPct,
     bearishPct,
-    score: data.goldSafeHavenScore,
+    macroScore: data.goldSafeHavenScore,
+    intradayScore: intradayScore != null ? Math.round(intradayScore * 10) / 10 : null,
   });
 
   hourlySentimentSnapshots.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
