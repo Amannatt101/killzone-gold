@@ -62,6 +62,29 @@ export const historyResponseSchema = z.object({
 
 export type HistoryResponse = z.infer<typeof historyResponseSchema>;
 
+// API response for /api/hourly-sentiment
+export const hourlySentimentPointSchema = z.object({
+  time: z.string(), // HH:00 London
+  bullishPct: z.number().nullable(),
+  bearishPct: z.number().nullable(),
+  score: z.number().nullable(),
+  capturedAt: z.string().nullable(), // ISO timestamp
+});
+
+export const hourlySentimentDaySchema = z.object({
+  date: z.string(), // YYYY-MM-DD London date key
+  label: z.string(), // e.g. Today, Mon 22 Apr
+  points: z.array(hourlySentimentPointSchema),
+});
+
+export const hourlySentimentResponseSchema = z.object({
+  timezone: z.literal("Europe/London"),
+  generatedAt: z.string(),
+  days: z.array(hourlySentimentDaySchema),
+});
+
+export type HourlySentimentResponse = z.infer<typeof hourlySentimentResponseSchema>;
+
 // Weight presets
 export const ORIGINAL_WEIGHTS = {
   realYield: 0.25,

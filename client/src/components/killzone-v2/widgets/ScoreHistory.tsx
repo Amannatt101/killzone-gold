@@ -1,147 +1,131 @@
-import { useMemo } from "react";
-
-const STATIC_SCORE_HISTORY = [
-  { d: "05 Apr", s: 71 },
-  { d: "06 Apr", s: 68 },
-  { d: "07 Apr", s: 66 },
-  { d: "08 Apr", s: 64 },
-  { d: "09 Apr", s: 62 },
-  { d: "10 Apr", s: 58 },
-  { d: "11 Apr", s: 55 },
-  { d: "12 Apr", s: 52 },
-  { d: "13 Apr", s: 54 },
-  { d: "14 Apr", s: 51 },
-  { d: "15 Apr", s: 49 },
-  { d: "16 Apr", s: 50 },
-  { d: "17 Apr", s: 49 },
-  { d: "18 Apr", s: 48 },
-];
-
-const SHIFTS = [
-  {
-    from: "04 Apr",
-    to: "07 Apr",
-    chg: -5,
-    kind: "down" as const,
-    reason: "Real yields broke above 1.60% — rate sensitivity reasserted as a first-order driver.",
-  },
-  {
-    from: "08 Apr",
-    to: "11 Apr",
-    chg: -11,
-    kind: "down" as const,
-    reason:
-      "Equity melt-up softened risk-off positioning; ETF inflows turned negative for the first time in 6 weeks.",
-  },
-  {
-    from: "13 Apr",
-    to: "16 Apr",
-    chg: -4,
-    kind: "down" as const,
-    reason: "Geopolitical headline intensity eased marginally as diplomatic channels reopened.",
-  },
-  {
-    from: "17 Apr",
-    to: "18 Apr",
-    chg: -1,
-    kind: "flat" as const,
-    reason: "Consolidation. No new drivers — score drifting sideways below the 50-line.",
-  },
-];
-
-function colorFor(s: number): string {
-  return s >= 75
-    ? "#5bc88a"
-    : s >= 65
-      ? "#a0c95a"
-      : s >= 50
-        ? "#e8b85a"
-        : s >= 35
-          ? "#e88a5a"
-          : "#ef5e5e";
-}
+type HourlySentimentDay = {
+  date: string;
+  label: string;
+  points: {
+    time: string;
+    bullishPct: number | null;
+    bearishPct: number | null;
+    score: number | null;
+    capturedAt: string | null;
+  }[];
+};
 
 export function ScoreHistory({
-  series,
-  shifts,
+  days,
 }: {
-  series?: { d: string; s: number }[];
-  shifts?: { from: string; to: string; chg: number; kind: "up" | "down" | "flat"; reason: string }[];
+  days?: HourlySentimentDay[];
 }) {
-  const SCORE_HISTORY = useMemo(() => {
-    if (series?.length) return series.slice(-14);
-    return STATIC_SCORE_HISTORY;
-  }, [series]);
-
-  const current = SCORE_HISTORY[SCORE_HISTORY.length - 1]?.s ?? 48;
-  const twoWeeksAgo = SCORE_HISTORY[0]?.s ?? current;
-  const delta = current - twoWeeksAgo;
+  const hasData = !!days?.length;
 
   return (
     <div className="w-card">
       <div className="w-head">
-        <div className="title">Score History · 14 Days</div>
-        <div className="meta">{series?.length ? "FROM MODEL HISTORY" : "ILLUSTRATIVE"}</div>
+        <div className="title">London Hourly Sentiment</div>
+        <div className="meta">HOURLY SNAPSHOTS · EUROPE/LONDON</div>
       </div>
       <div className="w-body">
-        <div className="sh-trend">
-          <div className="now">
-            <span className="v mono">{current}</span>
-            <span className="lbl">Current Score</span>
+        {!hasData && (
+          <div
+            style={{
+              border: "1px solid var(--line-1)",
+              borderRadius: 6,
+              padding: "14px 12px",
+              color: "var(--text-2)",
+              fontSize: 13,
+            }}
+          >
+            Hourly London sentiment snapshots will appear after the first on-the-hour capture.
           </div>
-          <div className="sh-trend" style={{ gap: 8 }}>
-            <span className={`delta ${delta >= 0 ? "up" : "down"} mono`}>
-              {delta >= 0 ? "+" : ""}
-              {delta} in 14d
-            </span>
-            <span
+        )}
+
+        {hasData &&
+          days?.map((day) => (
+            <div
+              key={day.date}
               style={{
-                fontFamily: "Geist Mono, monospace",
-                fontSize: 11,
-                color: "var(--text-3)",
+                marginTop: 12,
+                border: "1px solid var(--line-1)",
+                borderRadius: 6,
+                overflow: "hidden",
               }}
             >
-              from {twoWeeksAgo}
-            </span>
-          </div>
-        </div>
-
-        <div style={{ marginTop: 14 }}>
-          <div className="sh-bars">
-            {SCORE_HISTORY.map((h, i) => (
               <div
-                key={i}
-                className="sh-bar"
-                data-score={`${h.d} · ${h.s}`}
                 style={{
-                  height: `${(h.s / 100) * 100}%`,
-                  background: `linear-gradient(180deg, ${colorFor(h.s)} 0%, ${colorFor(h.s)}66 100%)`,
-                  boxShadow:
-                    i === SCORE_HISTORY.length - 1 ? `0 0 12px ${colorFor(h.s)}80` : "none",
+                  display: "grid",
+                  gridTemplateColumns: "1fr auto",
+                  alignItems: "center",
+                  background: "var(--bg-2)",
+                  borderBottom: "1px solid var(--line-1)",
+                  padding: "8px 10px",
+                  fontSize: 11,
+                  letterSpacing: "0.12em",
+                  textTransform: "uppercase",
+                  color: "var(--text-3)",
                 }}
-              />
-            ))}
-          </div>
-          <div className="sh-xlabels">
-            {SCORE_HISTORY.map((h, i) => (
-              <span key={i}>{h.d.split(" ")[0]}</span>
-            ))}
-          </div>
-        </div>
-
-        <div className="sh-shifts">
-          {(shifts?.length ? shifts : SHIFTS).map((s, i) => (
-            <div key={i} className={`sh-shift ${s.kind}`}>
-              <div className="sh-shift-date mono">{s.from}</div>
-              <div className={`sh-shift-chg ${s.kind} mono`}>
-                {s.chg >= 0 ? "+" : ""}
-                {s.chg}
+              >
+                <span>{day.label}</span>
+                <span className="mono">{day.date}</span>
               </div>
-              <div className="sh-shift-reason">{s.reason}</div>
-              <div className="sh-shift-range mono">→ {s.to}</div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "120px 1fr 1fr",
+                  gap: 8,
+                  padding: "8px 10px",
+                  borderBottom: "1px solid var(--line-1)",
+                  fontSize: 10,
+                  letterSpacing: "0.1em",
+                  textTransform: "uppercase",
+                  color: "var(--text-3)",
+                }}
+              >
+                <span>Time (London)</span>
+                <span>Bullish</span>
+                <span>Bearish</span>
+              </div>
+
+              {day.points.map((point, idx) => (
+                <div
+                  key={`${day.date}-${point.time}-${idx}`}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "120px 1fr 1fr",
+                    gap: 8,
+                    alignItems: "center",
+                    padding: "8px 10px",
+                    borderBottom:
+                      idx < day.points.length - 1 ? "1px solid var(--line-1)" : "none",
+                    fontSize: 13,
+                    color: "var(--text-1)",
+                  }}
+                >
+                  <span className="mono" style={{ color: "var(--text-2)" }}>
+                    {point.time}
+                  </span>
+                  <span className="mono" style={{ color: "var(--bull)" }}>
+                    {typeof point.bullishPct === "number" ? `${point.bullishPct.toFixed(1)}%` : "—"}
+                  </span>
+                  <span className="mono" style={{ color: "var(--bear)" }}>
+                    {typeof point.bearishPct === "number" ? `${point.bearishPct.toFixed(1)}%` : "—"}
+                  </span>
+                </div>
+              ))}
             </div>
           ))}
-        </div>
+
+        {hasData && (
+          <div
+            style={{
+              marginTop: 10,
+              fontSize: 11,
+              color: "var(--text-3)",
+              fontFamily: "Geist Mono, monospace",
+            }}
+          >
+            Fixed hourly snapshots captured in London time.
+          </div>
+        )}
       </div>
     </div>
   );

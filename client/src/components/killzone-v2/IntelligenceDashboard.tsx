@@ -14,8 +14,17 @@ export type IntelligenceDashboardProps = {
   signal: SignalData;
   regimeLabel: string;
   nextRefreshIso?: string | null;
-  scoreSeries?: { d: string; s: number }[];
-  scoreShifts?: { from: string; to: string; chg: number; kind: "up" | "down" | "flat"; reason: string }[];
+  hourlySentimentDays?: {
+    date: string;
+    label: string;
+    points: {
+      time: string;
+      bullishPct: number | null;
+      bearishPct: number | null;
+      score: number | null;
+      capturedAt: string | null;
+    }[];
+  }[];
   invalidationRows?: {
     trigger: ReactNode;
     exp: string;
@@ -48,8 +57,7 @@ export function IntelligenceDashboard({
   signal,
   regimeLabel,
   nextRefreshIso,
-  scoreSeries,
-  scoreShifts,
+  hourlySentimentDays,
   invalidationRows,
   sessionStats,
   regimeMetrics,
@@ -217,7 +225,7 @@ export function IntelligenceDashboard({
                   dominance={dominance}
                 />
                 <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
-                <ScoreHistory series={scoreSeries} shifts={scoreShifts} />
+                <ScoreHistory days={hourlySentimentDays} />
                 <Invalidation rows={invalidationRows} />
               </div>
             </div>

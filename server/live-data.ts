@@ -56,6 +56,7 @@ interface GoldPrice {
 
 interface GoldFetchResult {
   dailyPrices: GoldPrice[];
+  hourlyPrices: GoldPrice[];
   spotPrice: number;
   futuresPrice: number;
   spotSource: string;
@@ -87,7 +88,9 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
   // 2. Fallback: Yahoo Finance GC=F for daily history + fallback spot
   const now = Math.floor(Date.now() / 1000);
   const sixMonthsAgo = now - 180 * 24 * 3600;
+  const sevenDaysAgo = now - 7 * 24 * 3600;
   let dailyPrices: GoldPrice[] = [];
+  let hourlyPrices: GoldPrice[] = [];
   let yahooSpot: number | null = null;
 
   try {
@@ -108,6 +111,28 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
     }
   } catch (err) {
     console.warn("[Gold] Yahoo daily fetch failed:", err);
+  }
+
+  // 2b. Short-term hourly history for reactive momentum (6h/24h)
+  try {
+    const hourlyUrl = `https://query1.finance.yahoo.com/v8/finance/chart/GC=F?period1=${sevenDaysAgo}&period2=${now}&interval=1h`;
+    const resp = await fetch(hourlyUrl, { headers: { "User-Agent": ua } });
+    if (resp.ok) {
+      const json = (await resp.json()) as any;
+      const result = json.chart?.result?.[0];
+      if (result) {
+        const timestamps: number[] = result.timestamp || [];
+        const closes: number[] = result.indicators?.quote?.[0]?.close || [];
+        hourlyPrices = timestamps
+          .map((ts, i) => ({
+            date: new Date(ts * 1000).toISOString(),
+            close: closes[i] || 0,
+          }))
+          .filter((p) => p.close > 0);
+      }
+    }
+  } catch (err) {
+    console.warn("[Gold] Yahoo hourly fetch failed:", err);
   }
 
   // 3. Use spot price from gold-api.com (true XAU/USD), fall back to Yahoo GC=F
@@ -132,6 +157,7 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
 
   return {
     dailyPrices,
+    hourlyPrices,
     spotPrice: spotPrice || currentPrice,
     futuresPrice: yahooSpot || currentPrice,
     spotSource: spotPrice ? spotSource : "Yahoo GC=F",
@@ -231,6 +257,10 @@ function remapGPR(val: number): number {
   return 100;
 }
 
+function clamp(val: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, val));
+}
+
 // ─── Types ───────────────────────────────────────────────────────
 export interface BasisData {
   spot: number;         // XAU/USD spot from gold-api.com
@@ -300,6 +330,16 @@ export interface ScoreLogEntry {
   };
 }
 
+export interface HourlySentimentSnapshot {
+  timestamp: string; // ISO capture timestamp
+  londonDate: string; // YYYY-MM-DD in Europe/London
+  londonHour: string; // HH:00 in Europe/London
+  londonHourKey: string; // YYYY-MM-DD HH:00
+  bullishPct: number;
+  bearishPct: number;
+  score: number;
+}
+
 function getSignalLabel(score: number): string {
   if (score >= 75) return "STRONG BUY";
   if (score >= 65) return "BUY";
@@ -311,6 +351,8 @@ function getSignalLabel(score: number): string {
 
 const MAX_LOG_ENTRIES = 500; // ~10 days of 30-min readings
 let scoreLog: ScoreLogEntry[] = [];
+const MAX_HOURLY_SNAPSHOTS = 24 * 14; // retain 14 days of hourly snapshots
+let hourlySentimentSnapshots: HourlySentimentSnapshot[] = [];
 
 // Persistence: save/load from JSON file next to the data dir
 function getLogFilePath(): string {
@@ -322,6 +364,16 @@ function getLogFilePath(): string {
     if (fs.existsSync(base)) return path.join(base, "score_log.json");
   }
   return path.join(process.cwd(), "score_log.json");
+}
+
+function getHourlySnapshotFilePath(): string {
+  for (const base of [
+    path.join(process.cwd(), "server", "data"),
+    path.join(process.cwd(), "dist", "data"),
+  ]) {
+    if (fs.existsSync(base)) return path.join(base, "hourly_sentiment.json");
+  }
+  return path.join(process.cwd(), "hourly_sentiment.json");
 }
 
 function loadScoreLog(): void {
@@ -337,6 +389,21 @@ function loadScoreLog(): void {
   }
 }
 
+function loadHourlySentimentSnapshots(): void {
+  try {
+    const filePath = getHourlySnapshotFilePath();
+    if (fs.existsSync(filePath)) {
+      const raw = fs.readFileSync(filePath, "utf-8");
+      hourlySentimentSnapshots = JSON.parse(raw);
+      console.log(
+        `[Hourly Sentiment] Loaded ${hourlySentimentSnapshots.length} snapshots from disk`,
+      );
+    }
+  } catch (err) {
+    console.warn("[Hourly Sentiment] Failed to load from disk:", err);
+  }
+}
+
 function saveScoreLog(): void {
   try {
     const filePath = getLogFilePath();
@@ -344,6 +411,156 @@ function saveScoreLog(): void {
   } catch (err) {
     console.warn("[Score Log] Failed to save to disk:", err);
   }
+}
+
+function saveHourlySentimentSnapshots(): void {
+  try {
+    const filePath = getHourlySnapshotFilePath();
+    fs.writeFileSync(filePath, JSON.stringify(hourlySentimentSnapshots), "utf-8");
+  } catch (err) {
+    console.warn("[Hourly Sentiment] Failed to save to disk:", err);
+  }
+}
+
+function getLondonDateHourKey(date: Date): { londonDate: string; londonHour: string; londonHourKey: string } {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  const hour = parts.find((p) => p.type === "hour")?.value ?? "00";
+  const londonDate = `${year}-${month}-${day}`;
+  const londonHour = `${hour}:00`;
+  return {
+    londonDate,
+    londonHour,
+    londonHourKey: `${londonDate} ${londonHour}`,
+  };
+}
+
+function computeBullBearFromComponents(data: LiveScoreData): { bullishPct: number; bearishPct: number } {
+  return computeBullBearFromComponentSet(
+    [
+      { score: data.ryScore, weight: 0.25 },
+      { score: data.usdScore, weight: 0.2 },
+      { score: data.gprScore, weight: 0.13 },
+      { score: data.cbScore, weight: 0.05 },
+      { score: data.riskoffScore, weight: 0.15 },
+      { score: data.inflationScore, weight: 0.1 },
+      { score: data.momentumScore, weight: 0.12 },
+    ],
+    data.goldSafeHavenScore,
+  );
+}
+
+function computeBullBearFromComponentSet(
+  components: Array<{ score: number; weight: number }>,
+  fallbackScore: number,
+): { bullishPct: number; bearishPct: number } {
+  let bullSum = 0;
+  let bearSum = 0;
+  for (const c of components) {
+    const centered = (c.score - 50) / 50;
+    const deadZone = 0.06;
+    const adjusted = Math.abs(centered) < deadZone ? 0 : centered;
+    const signed = Math.max(-c.weight * 0.85, Math.min(c.weight * 0.85, adjusted * c.weight));
+    if (signed > 0) bullSum += signed;
+    if (signed < 0) bearSum += Math.abs(signed);
+  }
+
+  const total = bullSum + bearSum;
+  if (total <= 0) {
+    const bullishPct = Math.round(fallbackScore * 10) / 10;
+    return { bullishPct, bearishPct: Math.round((100 - bullishPct) * 10) / 10 };
+  }
+
+  const bullishPct = Math.round((bullSum / total) * 1000) / 10;
+  return { bullishPct, bearishPct: Math.round((100 - bullishPct) * 10) / 10 };
+}
+
+function backfillRecentHourlySnapshotsFromScoreLog(hoursLookback: number = 48): void {
+  if (!scoreLog.length) return;
+  const cutoffMs = Date.now() - hoursLookback * 60 * 60 * 1000;
+
+  // Keep earliest reading in each London hour to approximate "start-of-hour" state.
+  const earliestPerHour = new Map<string, ScoreLogEntry>();
+  for (const entry of scoreLog) {
+    const ts = new Date(entry.timestamp).getTime();
+    if (!Number.isFinite(ts) || ts < cutoffMs) continue;
+    const { londonHourKey } = getLondonDateHourKey(new Date(ts));
+    const existing = earliestPerHour.get(londonHourKey);
+    if (!existing || new Date(entry.timestamp).getTime() < new Date(existing.timestamp).getTime()) {
+      earliestPerHour.set(londonHourKey, entry);
+    }
+  }
+
+  let inserted = 0;
+  for (const entry of Array.from(earliestPerHour.values())) {
+    const dt = new Date(entry.timestamp);
+    const { londonDate, londonHour, londonHourKey } = getLondonDateHourKey(dt);
+    if (hourlySentimentSnapshots.some((s) => s.londonHourKey === londonHourKey)) continue;
+    const { bullishPct, bearishPct } = computeBullBearFromComponentSet(
+      [
+        { score: entry.components.ry, weight: 0.25 },
+        { score: entry.components.usd, weight: 0.2 },
+        { score: entry.components.gpr, weight: 0.13 },
+        { score: entry.components.cb, weight: 0.05 },
+        { score: entry.components.riskoff, weight: 0.15 },
+        { score: entry.components.inflation, weight: 0.1 },
+        { score: entry.components.momentum, weight: 0.12 },
+      ],
+      entry.score,
+    );
+    hourlySentimentSnapshots.push({
+      timestamp: entry.timestamp,
+      londonDate,
+      londonHour,
+      londonHourKey,
+      bullishPct,
+      bearishPct,
+      score: entry.score,
+    });
+    inserted++;
+  }
+
+  if (inserted > 0) {
+    hourlySentimentSnapshots.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    if (hourlySentimentSnapshots.length > MAX_HOURLY_SNAPSHOTS) {
+      hourlySentimentSnapshots = hourlySentimentSnapshots.slice(-MAX_HOURLY_SNAPSHOTS);
+    }
+    saveHourlySentimentSnapshots();
+    console.log(`[Hourly Sentiment] Backfilled ${inserted} hourly snapshots from recent score log`);
+  }
+}
+
+function appendHourlySentimentSnapshot(data: LiveScoreData): void {
+  const now = new Date();
+  const { londonDate, londonHour, londonHourKey } = getLondonDateHourKey(now);
+  if (hourlySentimentSnapshots.some((s) => s.londonHourKey === londonHourKey)) return;
+
+  const { bullishPct, bearishPct } = computeBullBearFromComponents(data);
+  hourlySentimentSnapshots.push({
+    timestamp: now.toISOString(),
+    londonDate,
+    londonHour,
+    londonHourKey,
+    bullishPct,
+    bearishPct,
+    score: data.goldSafeHavenScore,
+  });
+
+  hourlySentimentSnapshots.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+  if (hourlySentimentSnapshots.length > MAX_HOURLY_SNAPSHOTS) {
+    hourlySentimentSnapshots = hourlySentimentSnapshots.slice(-MAX_HOURLY_SNAPSHOTS);
+  }
+  saveHourlySentimentSnapshots();
 }
 
 function appendToScoreLog(data: LiveScoreData): void {
@@ -388,6 +605,10 @@ export function getScoreLog(): ScoreLogEntry[] {
   return scoreLog;
 }
 
+export function getHourlySentimentSnapshots(): HourlySentimentSnapshot[] {
+  return hourlySentimentSnapshots;
+}
+
 // ─── Cache ───────────────────────────────────────────────────────
 let cachedLiveScore: LiveScoreData | null = null;
 let fetchInProgress = false;
@@ -423,6 +644,7 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
 
     // Destructure gold result
     const goldData = goldResult.dailyPrices;
+    const goldHourly = goldResult.hourlyPrices;
     const goldSpot = goldResult.spotPrice;
     const goldFutures = goldResult.futuresPrice;
     const goldSpotSource = goldResult.spotSource;
@@ -495,22 +717,50 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     const latestBEChange = beChanges.at(-1) ?? 0;
     const inflationScore = percentileRank(beChanges, latestBEChange);
 
-    // Component 7: Momentum (gold above 3-month SMA)
-    // Using daily data now: ~63 trading days = 3 months
+    // Component 7: Momentum (trend + short-term impulse)
+    // - Trend leg keeps structural context (3-month SMA)
+    // - Impulse leg adds 6h/24h responsiveness to sharp moves
     const smaWindow = Math.min(63, goldCloses.length);
     const smaSlice = goldCloses.slice(-smaWindow);
     const sma3 = smaSlice.reduce((a, b) => a + b, 0) / Math.max(smaSlice.length, 1);
-    const momentumScore = latestGold > sma3 ? 80 : 30;
+    const trendScore = latestGold > sma3 ? 70 : 30;
 
-    // Composite Score (original weights)
+    const dailyReturns = goldCloses
+      .slice(1)
+      .map((v, i) => ((v - goldCloses[i]) / Math.max(goldCloses[i], 1)) * 100);
+    const latestDailyReturn = dailyReturns.at(-1) ?? 0;
+    const dailyImpulseScore = percentileRank(dailyReturns, latestDailyReturn);
+
+    const currentTs = Date.now();
+    const closestPriceAtOrBefore = (hoursBack: number): number | null => {
+      const target = currentTs - hoursBack * 3600 * 1000;
+      for (let i = goldHourly.length - 1; i >= 0; i--) {
+        const ts = new Date(goldHourly[i].date).getTime();
+        if (ts <= target) return goldHourly[i].close;
+      }
+      return null;
+    };
+
+    const px6h = closestPriceAtOrBefore(6);
+    const px24h = closestPriceAtOrBefore(24);
+    const roc6h = px6h ? ((latestGold - px6h) / px6h) * 100 : 0;
+    const roc24h = px24h ? ((latestGold - px24h) / px24h) * 100 : latestDailyReturn;
+
+    // Scale 6h/24h moves into a bounded 0-100 score.
+    // Positive move => more supportive, negative move => less supportive.
+    const shortTermImpulseScore = clamp(50 + roc24h * 20 + roc6h * 10, 0, 100);
+    const momentumScore =
+      0.35 * trendScore + 0.25 * dailyImpulseScore + 0.4 * shortTermImpulseScore;
+
+    // Composite Score (tuned: slightly higher weight on momentum responsiveness)
     const goldSafeHavenScore =
       0.25 * ryScore +
       0.2 * usdScore +
-      0.15 * gprScore +
-      0.1 * cbScore +
+      0.13 * gprScore +
+      0.05 * cbScore +
       0.15 * riskoffScore +
       0.1 * inflationScore +
-      0.05 * momentumScore;
+      0.12 * momentumScore;
 
     const now = new Date();
     const nextRefresh = new Date(now.getTime() + REFRESH_INTERVAL_MS);
@@ -530,7 +780,7 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       cbScore,
       riskoffScore: Math.round(riskoffScore * 10) / 10,
       inflationScore: Math.round(inflationScore * 10) / 10,
-      momentumScore,
+      momentumScore: Math.round(momentumScore * 10) / 10,
       goldSafeHavenScore: Math.round(goldSafeHavenScore * 10) / 10,
       lastFetched: now.toISOString(),
       nextRefresh: nextRefresh.toISOString(),
@@ -544,6 +794,7 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
 
     // Append to score log
     appendToScoreLog(cachedLiveScore);
+    appendHourlySentimentSnapshot(cachedLiveScore);
 
     return cachedLiveScore;
   } catch (err) {
@@ -574,10 +825,14 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
 
 // ─── Auto-refresh timer ──────────────────────────────────────────
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
+let hourlyBoundaryTimer: ReturnType<typeof setTimeout> | null = null;
+let hourlyRefreshTimer: ReturnType<typeof setInterval> | null = null;
 
 export function startAutoRefresh(): void {
   // Load persisted log from disk
   loadScoreLog();
+  loadHourlySentimentSnapshots();
+  backfillRecentHourlySnapshotsFromScoreLog(48);
 
   // Initial fetch
   fetchAndComputeLiveScore().catch(console.error);
@@ -587,6 +842,22 @@ export function startAutoRefresh(): void {
     fetchAndComputeLiveScore().catch(console.error);
   }, REFRESH_INTERVAL_MS);
 
+  // Also trigger exactly on hourly boundaries for fixed hourly snapshots.
+  const msUntilNextHour = () => {
+    const now = new Date();
+    const nextHour = new Date(now);
+    nextHour.setMinutes(0, 0, 0);
+    nextHour.setHours(nextHour.getHours() + 1);
+    return nextHour.getTime() - now.getTime();
+  };
+
+  hourlyBoundaryTimer = setTimeout(() => {
+    fetchAndComputeLiveScore().catch(console.error);
+    hourlyRefreshTimer = setInterval(() => {
+      fetchAndComputeLiveScore().catch(console.error);
+    }, 60 * 60 * 1000);
+  }, msUntilNextHour());
+
   console.log(`[Live Data] Auto-refresh started (every ${REFRESH_INTERVAL_MS / 60000} min)`);
 }
 
@@ -594,5 +865,13 @@ export function stopAutoRefresh(): void {
   if (refreshTimer) {
     clearInterval(refreshTimer);
     refreshTimer = null;
+  }
+  if (hourlyBoundaryTimer) {
+    clearTimeout(hourlyBoundaryTimer);
+    hourlyBoundaryTimer = null;
+  }
+  if (hourlyRefreshTimer) {
+    clearInterval(hourlyRefreshTimer);
+    hourlyRefreshTimer = null;
   }
 }

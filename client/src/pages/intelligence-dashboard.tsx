@@ -36,8 +36,20 @@ type ScoreApi = {
   };
 };
 
-type HistoryApi = {
-  data: { date: string; goldSafeHavenScore: number }[];
+type HourlySentimentApi = {
+  timezone: "Europe/London";
+  generatedAt: string;
+  days: {
+    date: string;
+    label: string;
+    points: {
+      time: string;
+      bullishPct: number | null;
+      bearishPct: number | null;
+      score: number | null;
+      capturedAt: string | null;
+    }[];
+  }[];
 };
 
 type ScoreLogApi = {
@@ -181,9 +193,10 @@ export default function IntelligenceDashboardPage() {
     retry: false,
   });
 
-  const { data: historyApi } = useQuery<HistoryApi>({
-    queryKey: ["/api/history"],
-    staleTime: 5 * 60 * 1000,
+  const { data: hourlySentimentApi } = useQuery<HourlySentimentApi>({
+    queryKey: ["/api/hourly-sentiment?days=7"],
+    refetchInterval: REACTIVE_REFRESH_MS,
+    staleTime: 60 * 1000,
     retry: false,
   });
   const { data: scoreLogApi } = useQuery<ScoreLogApi>({
@@ -201,40 +214,15 @@ export default function IntelligenceDashboardPage() {
 
   const signal: SignalData = (liveSignal ?? (bakedSignal as SignalData)) as SignalData;
 
-  const scoreSeries = useMemo(() => {
-    const rows = historyApi?.data;
-    if (!rows?.length) return undefined;
-    return rows.slice(-14).map((row) => ({
-      d: new Date(row.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" }),
-      s: Math.round(row.goldSafeHavenScore),
-    }));
-  }, [historyApi]);
-
-  const scoreShifts = useMemo(() => {
-    if (!scoreSeries?.length || scoreSeries.length < 4) return undefined;
-    const window = Math.max(2, Math.floor(scoreSeries.length / 4));
-    const shifts: { from: string; to: string; chg: number; kind: "up" | "down" | "flat"; reason: string }[] =
-      [];
-    for (let i = 0; i < scoreSeries.length - 1; i += window) {
-      const start = scoreSeries[i];
-      const end = scoreSeries[Math.min(scoreSeries.length - 1, i + window)];
-      if (!start || !end || start === end) continue;
-      const chg = Math.round((end.s - start.s) * 10) / 10;
-      shifts.push({
-        from: start.d,
-        to: end.d,
-        chg,
-        kind: chg > 0 ? "up" : chg < 0 ? "down" : "flat",
-        reason:
-          chg > 0
-            ? "Composite score strengthened through this window as supportive factors gained weight."
-            : chg < 0
-              ? "Composite score weakened through this window as headwinds outweighed support."
-              : "Composite score stayed broadly flat with no dominant macro shift.",
-      });
-    }
-    return shifts.slice(-4);
-  }, [scoreSeries]);
+  const hourlySentimentDays = useMemo(
+    () =>
+      hourlySentimentApi?.days?.map((day) => ({
+        date: day.date,
+        label: day.label,
+        points: [...day.points].sort((a, b) => a.time.localeCompare(b.time)),
+      })),
+    [hourlySentimentApi?.days],
+  );
 
   const regimeLabel = scoreApi?.regime ?? "Neutral — macro context loading";
 
@@ -442,8 +430,7 @@ export default function IntelligenceDashboardPage() {
       signal={signal}
       regimeLabel={regimeLabel}
       nextRefreshIso={scoreApi?.nextRefresh}
-      scoreSeries={scoreSeries}
-      scoreShifts={scoreShifts}
+      hourlySentimentDays={hourlySentimentDays}
       invalidationRows={invalidationRows}
       sessionStats={sessionStats}
       regimeMetrics={regimeMetrics}

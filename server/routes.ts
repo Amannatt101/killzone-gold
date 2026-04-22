@@ -7,6 +7,7 @@ import type { MonthlyData } from "@shared/schema";
 import {
   fetchAndComputeLiveScore,
   getCachedLiveScore,
+  getHourlySentimentSnapshots,
   getScoreLog,
   startAutoRefresh,
   type LiveScoreData,
@@ -196,6 +197,31 @@ function ageLabel(iso: string): string {
   if (mins < 60) return `${mins}m`;
   const hrs = Math.floor(mins / 60);
   return `${hrs}h`;
+}
+
+function londonDateKey(date: Date): string {
+  const formatter = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = formatter.formatToParts(date);
+  const year = parts.find((p) => p.type === "year")?.value ?? "1970";
+  const month = parts.find((p) => p.type === "month")?.value ?? "01";
+  const day = parts.find((p) => p.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
+function londonDayLabel(dateKey: string): string {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  const utcDate = new Date(Date.UTC(year, (month || 1) - 1, day || 1, 12, 0, 0));
+  return utcDate.toLocaleDateString("en-GB", {
+    weekday: "short",
+    day: "2-digit",
+    month: "short",
+    timeZone: "Europe/London",
+  });
 }
 
 function fallbackNewsImage(source: string): string {
@@ -615,11 +641,11 @@ export async function registerRoutes(
       const components = [
         { name: "Real Yield Direction", score: current.ryScore, weight: 0.25, contribution: current.ryScore * 0.25 },
         { name: "USD Trend", score: current.usdScore, weight: 0.20, contribution: current.usdScore * 0.20 },
-        { name: "GPR Index", score: current.gprScore, weight: 0.15, contribution: current.gprScore * 0.15 },
-        { name: "Central Bank Demand", score: current.cbScore, weight: 0.10, contribution: current.cbScore * 0.10 },
+        { name: "GPR Index", score: current.gprScore, weight: 0.13, contribution: current.gprScore * 0.13 },
+        { name: "Central Bank Demand", score: current.cbScore, weight: 0.05, contribution: current.cbScore * 0.05 },
         { name: "Risk-Off Score", score: current.riskoffScore, weight: 0.15, contribution: current.riskoffScore * 0.15 },
         { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
-        { name: "Momentum", score: current.momentumScore, weight: 0.05, contribution: current.momentumScore * 0.05 },
+        { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
       ];
 
       res.json({
@@ -643,11 +669,11 @@ export async function registerRoutes(
         const components = [
           { name: "Real Yield Direction", score: current.ryScore, weight: 0.25, contribution: current.ryScore * 0.25 },
           { name: "USD Trend", score: current.usdScore, weight: 0.20, contribution: current.usdScore * 0.20 },
-          { name: "GPR Index", score: current.gprScore, weight: 0.15, contribution: current.gprScore * 0.15 },
-          { name: "Central Bank Demand", score: current.cbScore, weight: 0.10, contribution: current.cbScore * 0.10 },
+          { name: "GPR Index", score: current.gprScore, weight: 0.13, contribution: current.gprScore * 0.13 },
+          { name: "Central Bank Demand", score: current.cbScore, weight: 0.05, contribution: current.cbScore * 0.05 },
           { name: "Risk-Off Score", score: current.riskoffScore, weight: 0.15, contribution: current.riskoffScore * 0.15 },
           { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
-          { name: "Momentum", score: current.momentumScore, weight: 0.05, contribution: current.momentumScore * 0.05 },
+          { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
         ];
         res.json({
           current,
@@ -686,6 +712,81 @@ export async function registerRoutes(
       });
     } else {
       res.json({ dataStatus: "loading", lastFetched: null, nextRefresh: null });
+    }
+  });
+
+  app.get("/api/hourly-sentiment", (req, res) => {
+    try {
+      const daysParam = Number(req.query.days);
+      const days = Number.isFinite(daysParam)
+        ? Math.max(1, Math.min(14, Math.floor(daysParam)))
+        : 7;
+
+      const todayLondon = londonDateKey(new Date());
+      const dates: string[] = [];
+      for (let i = 0; i < days; i++) {
+        const d = new Date();
+        d.setUTCDate(d.getUTCDate() - i);
+        dates.push(londonDateKey(d));
+      }
+      const allowedDateSet = new Set(dates);
+
+      const grouped = new Map<
+        string,
+        {
+          timestamp: string;
+          londonHour: string;
+          bullishPct: number;
+          bearishPct: number;
+          score: number;
+        }[]
+      >();
+
+      for (const snapshot of getHourlySentimentSnapshots()) {
+        if (!allowedDateSet.has(snapshot.londonDate)) continue;
+        const rows = grouped.get(snapshot.londonDate) ?? [];
+        rows.push({
+          timestamp: snapshot.timestamp,
+          londonHour: snapshot.londonHour,
+          bullishPct: snapshot.bullishPct,
+          bearishPct: snapshot.bearishPct,
+          score: snapshot.score,
+        });
+        grouped.set(snapshot.londonDate, rows);
+      }
+
+      const daysOut = dates
+        .map((date) => {
+          const existingByHour = new Map(
+            (grouped.get(date) ?? []).map((p) => [p.londonHour, p]),
+          );
+          const points = Array.from({ length: 24 }, (_, hour) => {
+            const time = `${String(hour).padStart(2, "0")}:00`;
+            const p = existingByHour.get(time);
+            return {
+              time,
+              bullishPct: p?.bullishPct ?? null,
+              bearishPct: p?.bearishPct ?? null,
+              score: p?.score ?? null,
+              capturedAt: p?.timestamp ?? null,
+            };
+          });
+
+          return {
+            date,
+            label: date === todayLondon ? "Today" : londonDayLabel(date),
+            points,
+          };
+        });
+
+      res.json({
+        timezone: "Europe/London",
+        generatedAt: new Date().toISOString(),
+        days: daysOut,
+      });
+    } catch (err) {
+      console.error("Error in /api/hourly-sentiment:", err);
+      res.status(500).json({ error: "Failed to load hourly sentiment history" });
     }
   });
 
@@ -1159,6 +1260,9 @@ export async function registerRoutes(
       let live = getCachedLiveScore();
       const stale = !live || Date.now() - new Date(live.lastFetched).getTime() > MARKET_STALE_MS;
       if (stale) live = await fetchAndComputeLiveScore();
+      if (!live) {
+        return res.status(503).json({ error: "Live market data unavailable" });
+      }
       const score = live.goldSafeHavenScore;
       const news = await fetchMarketNews();
       const headlineSignature = news.slice(0, 3).map((h) => h.title).join("|");
