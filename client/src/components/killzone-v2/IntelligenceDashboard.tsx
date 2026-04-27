@@ -279,7 +279,7 @@ export function IntelligenceDashboard({
           <div className="v2-right">
             <div className="v2-scroll">
               <div className="v2-inner">
-                <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
+                <KillzoneTiming stats={sessionStats} />
                 <PositioningBias
                   bias={signal.bias}
                   score={signal.score}
@@ -295,7 +295,7 @@ export function IntelligenceDashboard({
                   showIntradayBars={false}
                   showForces={false}
                 />
-                <KillzoneTiming stats={sessionStats} />
+                <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
 
                 <div
                   style={{
