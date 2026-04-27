@@ -7,25 +7,12 @@ import { KillzoneTiming } from "./widgets/KillzoneTiming";
 import { LiveMarketNarrativeCarousel, type MarketNarrativeSlide } from "./widgets/LiveMarketNarrativeCarousel";
 import { MarketRegime } from "./widgets/MarketRegime";
 import { PositioningBias } from "./widgets/PositioningBias";
-import { ScoreHistory } from "./widgets/ScoreHistory";
 import type { SignalData } from "./signal-types";
 
 export type IntelligenceDashboardProps = {
   signal: SignalData;
   regimeLabel: string;
   nextRefreshIso?: string | null;
-  hourlySentimentDays?: {
-    date: string;
-    label: string;
-    points: {
-      time: string;
-      bullishPct: number | null;
-      bearishPct: number | null;
-      macroScore: number | null;
-      intradayScore: number | null;
-      capturedAt: string | null;
-    }[];
-  }[];
   invalidationRows?: {
     trigger: ReactNode;
     exp: string;
@@ -98,7 +85,6 @@ export function IntelligenceDashboard({
   signal,
   regimeLabel,
   nextRefreshIso,
-  hourlySentimentDays,
   invalidationRows,
   sessionStats,
   regimeMetrics,
@@ -271,7 +257,6 @@ export function IntelligenceDashboard({
                   showForces={true}
                 />
                 <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
-                <ScoreHistory days={hourlySentimentDays} />
                 <Invalidation rows={invalidationRows} />
               </div>
             </div>
@@ -280,6 +265,12 @@ export function IntelligenceDashboard({
             <div className="v2-scroll">
               <div className="v2-inner">
                 <KillzoneTiming stats={sessionStats} />
+                <PositioningBias
+                  bias={signal.bias}
+                  score={signal.score}
+                  title={positioning.title}
+                  body={positioning.body}
+                />
                 <Battlefield
                   score={topbar.score}
                   dominanceModes={dominanceModes}
@@ -288,12 +279,6 @@ export function IntelligenceDashboard({
                   showMacroBar={true}
                   showIntradayBars={false}
                   showForces={false}
-                />
-                <PositioningBias
-                  bias={signal.bias}
-                  score={signal.score}
-                  title={positioning.title}
-                  body={positioning.body}
                 />
                 <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
 

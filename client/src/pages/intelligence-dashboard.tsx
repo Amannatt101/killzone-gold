@@ -83,23 +83,6 @@ type DominanceComponent = {
   contribution: number;
 };
 
-type HourlySentimentApi = {
-  timezone: "Europe/London";
-  generatedAt: string;
-  days: {
-    date: string;
-    label: string;
-    points: {
-      time: string;
-      bullishPct: number | null;
-      bearishPct: number | null;
-      macroScore: number | null;
-      intradayScore: number | null;
-      capturedAt: string | null;
-    }[];
-  }[];
-};
-
 type ScoreLogApi = {
   entries: {
     timestamp: string;
@@ -241,12 +224,6 @@ export default function IntelligenceDashboardPage() {
     retry: false,
   });
 
-  const { data: hourlySentimentApi } = useQuery<HourlySentimentApi>({
-    queryKey: ["/api/hourly-sentiment?days=2"],
-    refetchInterval: REACTIVE_REFRESH_MS,
-    staleTime: 60 * 1000,
-    retry: false,
-  });
   const { data: scoreLogApi } = useQuery<ScoreLogApi>({
     queryKey: ["/api/score-log"],
     refetchInterval: REACTIVE_REFRESH_MS,
@@ -351,16 +328,6 @@ export default function IntelligenceDashboardPage() {
       },
     };
   }, [scoreApi]);
-
-  const hourlySentimentDays = useMemo(
-    () =>
-      hourlySentimentApi?.days?.map((day) => ({
-        date: day.date,
-        label: day.label,
-        points: [...day.points].sort((a, b) => a.time.localeCompare(b.time)),
-      })),
-    [hourlySentimentApi?.days],
-  );
 
   const regimeLabel = scoreApi?.regime ?? "Neutral — macro context loading";
 
@@ -559,7 +526,6 @@ export default function IntelligenceDashboardPage() {
       signal={signal}
       regimeLabel={regimeLabel}
       nextRefreshIso={scoreApi?.nextRefresh}
-      hourlySentimentDays={hourlySentimentDays}
       invalidationRows={invalidationRows}
       sessionStats={sessionStats}
       regimeMetrics={regimeMetrics}
