@@ -49,6 +49,16 @@ export const scoreResponseSchema = z.object({
         window: z.literal("15m/1h"),
         lastSampleAt: z.string(),
       }),
+      intraday2h: z.object({
+        components: z.array(componentScoreSchema),
+        window: z.literal("2h"),
+        lastSampleAt: z.string(),
+      }),
+      intraday4h: z.object({
+        components: z.array(componentScoreSchema),
+        window: z.literal("4h"),
+        lastSampleAt: z.string(),
+      }),
     })
     .optional(),
   compositeScore: z.number(),

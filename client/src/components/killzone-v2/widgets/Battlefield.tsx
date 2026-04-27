@@ -6,6 +6,7 @@ import {
 export function Battlefield({
   score,
   dominanceModes,
+  macroLastFetched,
 }: {
   score?: number;
   dominanceModes?: {
@@ -17,8 +18,30 @@ export function Battlefield({
       window?: string;
       lastSampleAt?: string;
     };
+    intraday2h?: {
+      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      window?: string;
+      lastSampleAt?: string;
+    };
+    intraday4h?: {
+      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      window?: string;
+      lastSampleAt?: string;
+    };
   };
+  macroLastFetched?: string;
 }) {
+  function minsAgo(iso?: string): string {
+    if (!iso) return "n/a";
+    const ms = Date.now() - new Date(iso).getTime();
+    if (!Number.isFinite(ms) || ms < 0) return "n/a";
+    const mins = Math.floor(ms / 60000);
+    if (mins < 1) return "<1m ago";
+    if (mins < 60) return `${mins}m ago`;
+    const h = Math.floor(mins / 60);
+    return `${h}h ago`;
+  }
+
   function normalizeForceName(name: string): string {
     return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   }
@@ -64,6 +87,14 @@ export function Battlefield({
     score,
     components: dominanceModes?.intraday?.components,
   });
+  const intraday2hModel = buildDominanceFromComponents({
+    score,
+    components: dominanceModes?.intraday2h?.components,
+  });
+  const intraday4hModel = buildDominanceFromComponents({
+    score,
+    components: dominanceModes?.intraday4h?.components,
+  });
   const model = macroModel;
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
@@ -73,14 +104,76 @@ export function Battlefield({
   const BULL_FORCES: DominanceForce[] = model.bullForces;
   const BEAR_FORCES: DominanceForce[] = model.bearForces;
   const motionStrength = 0.5;
+  const macroBull = macroModel.bullPct;
+  const intraBull = intradayModel.bullPct;
+  const macroBear = 100 - macroBull;
+  const intraBear = 100 - intraBull;
+  const macroStrongBull = macroBull >= 65;
+  const macroStrongBear = macroBull <= 35;
+  const intraStrongBull = intraBull >= 65;
+  const intraStrongBear = intraBull <= 35;
+  const splitRegime = (macroStrongBull && intraStrongBear) || (macroStrongBear && intraStrongBull);
+
+  const interpretation = (() => {
+    if (macroStrongBull && intraStrongBull) {
+      return "Aligned Bullish: trend and timing are both supportive for long setups.";
+    }
+    if (macroStrongBear && intraStrongBear) {
+      return "Aligned Bearish: trend and timing both favor defensive or short bias.";
+    }
+    if (macroStrongBull && intraStrongBear) {
+      return "Macro Bull, Intraday Pullback: broader uptrend with short-term pressure.";
+    }
+    if (macroStrongBear && intraStrongBull) {
+      return "Macro Bear, Intraday Bounce: broader downtrend with short-term relief rally.";
+    }
+    return "Mixed / No Edge: wait for clearer alignment between regime and execution.";
+  })();
 
   return (
     <div className="w-card accent">
       <div className="w-head">
         <div className="title">Bull vs Bear · Dominance</div>
-        <div className="meta">MACRO VS INTRADAY</div>
+        <div className="meta">MACRO = DIRECTIONAL BIAS · INTRADAY = TIMING LAYER</div>
       </div>
-      {[{ key: "macro", label: "Macro", m: macroModel }, { key: "intraday", label: "Intraday", m: intradayModel }].map(({ key, label, m }) => {
+      {splitRegime && (
+        <div
+          style={{
+            marginBottom: 10,
+            border: "1px solid var(--line-1)",
+            borderRadius: 6,
+            padding: "6px 10px",
+            fontSize: 11,
+            letterSpacing: "0.08em",
+            textTransform: "uppercase",
+            color: "var(--warn)",
+            background: "var(--bg-2)",
+          }}
+        >
+          Split Regime
+        </div>
+      )}
+      {[
+        { key: "macro", label: "Macro Regime (24h+ context)", m: macroModel, freshness: minsAgo(macroLastFetched) },
+        {
+          key: "intraday-fast",
+          label: "Fast Intraday Flow (15m/1h)",
+          m: intradayModel,
+          freshness: minsAgo(dominanceModes?.intraday?.lastSampleAt),
+        },
+        {
+          key: "intraday-2h",
+          label: "Intraday Flow (2h)",
+          m: intraday2hModel,
+          freshness: minsAgo(dominanceModes?.intraday2h?.lastSampleAt),
+        },
+        {
+          key: "intraday-4h",
+          label: "Intraday Flow (4h)",
+          m: intraday4hModel,
+          freshness: minsAgo(dominanceModes?.intraday4h?.lastSampleAt),
+        },
+      ].map(({ key, label, m, freshness }) => {
         const mBull = Number(m.bullPct.toFixed(1));
         const mBear = Number((100 - mBull).toFixed(1));
         const mEdge = Number((mBull - mBear).toFixed(1));
@@ -88,14 +181,17 @@ export function Battlefield({
         const mLeaningLabel =
           mLeaning === "bull" ? "LEANING BULLISH" : mLeaning === "bear" ? "LEANING BEARISH" : "BALANCED";
         return (
-          <div key={key} className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength, marginBottom: 10 }}>
-            <div style={{ fontSize: 10, letterSpacing: "0.1em", color: "var(--text-3)", textTransform: "uppercase", marginBottom: 6 }}>
+          <div key={key} className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength, marginBottom: 6, padding: "7px 9px" }}>
+            <div style={{ fontSize: 8, letterSpacing: "0.06em", color: "var(--text-3)", textTransform: "uppercase", marginBottom: 2 }}>
               {label}
             </div>
-            <div className="bf-hero-top">
+            <div className="mono" style={{ fontSize: 8, color: "var(--text-3)", marginBottom: 2 }}>
+              Updated {freshness}
+            </div>
+            <div className="bf-hero-top" style={{ marginBottom: 4 }}>
               <div className="bf-hero-side bull">
                 <div className="bf-hero-lbl">Supporting Gold</div>
-                <div className="bf-hero-pct mono">{mBull.toFixed(1)}%</div>
+                <div className="bf-hero-pct mono" style={{ fontSize: 20 }}>{mBull.toFixed(1)}%</div>
               </div>
               <div className={`bf-hero-verdict ${mLeaning} bf-live-verdict`}>
                 <div className="bf-hero-verdict-text">
@@ -108,14 +204,14 @@ export function Battlefield({
               </div>
               <div className="bf-hero-side bear">
                 <div className="bf-hero-lbl">Opposing Gold</div>
-                <div className="bf-hero-pct mono">{mBear.toFixed(1)}%</div>
+                <div className="bf-hero-pct mono" style={{ fontSize: 20 }}>{mBear.toFixed(1)}%</div>
               </div>
             </div>
-            <div className="bf-hero-bar">
-              <div className="bull bf-live-fill" style={{ width: `${mBull}%` }}>
+            <div className="bf-hero-bar" style={{ height: 12 }}>
+              <div className="bull bf-live-fill" style={{ width: `${mBull}%`, fontSize: 9 }}>
                 <span className="bf-hero-bar-lbl">{mBull.toFixed(1)}%</span>
               </div>
-              <div className="bear bf-live-fill" style={{ width: `${mBear}%` }}>
+              <div className="bear bf-live-fill" style={{ width: `${mBear}%`, fontSize: 9 }}>
                 <span className="bf-hero-bar-lbl">{mBear.toFixed(1)}%</span>
               </div>
               <div className="bf-hero-bar-center" />
@@ -123,6 +219,17 @@ export function Battlefield({
           </div>
         );
       })}
+      <div
+        style={{
+          marginBottom: 12,
+          borderTop: "1px solid var(--line-1)",
+          paddingTop: 10,
+          fontSize: 13,
+          color: "var(--text-2)",
+        }}
+      >
+        {interpretation}
+      </div>
 
       <div className="battlefield-grid">
         <div className="bf-side bull">

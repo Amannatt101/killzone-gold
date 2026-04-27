@@ -59,7 +59,28 @@ export type IntelligenceDashboardProps = {
       window: "15m/1h";
       lastSampleAt: string;
     };
+    intraday2h?: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "2h";
+      lastSampleAt: string;
+    };
+    intraday4h?: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "4h";
+      lastSampleAt: string;
+    };
   };
+  macroLastFetched?: string;
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -85,6 +106,7 @@ export function IntelligenceDashboard({
   positioning,
   scoreLastChangedIso,
   dominanceModes,
+  macroLastFetched,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
@@ -243,6 +265,7 @@ export function IntelligenceDashboard({
                 <Battlefield
                   score={topbar.score}
                   dominanceModes={dominanceModes}
+                  macroLastFetched={macroLastFetched}
                 />
                 <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
                 <ScoreHistory days={hourlySentimentDays} />

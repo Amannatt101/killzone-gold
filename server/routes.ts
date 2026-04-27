@@ -715,9 +715,19 @@ export async function registerRoutes(
       const dominanceModes = {
         macro: { components },
         intraday: {
-          components: live.intradayDominance.components,
-          window: live.intradayDominance.window,
-          lastSampleAt: live.intradayDominance.lastSampleAt,
+          components: live.intradayDominance.fast.components,
+          window: live.intradayDominance.fast.window,
+          lastSampleAt: live.intradayDominance.fast.lastSampleAt,
+        },
+        intraday2h: {
+          components: live.intradayDominance.h2.components,
+          window: live.intradayDominance.h2.window,
+          lastSampleAt: live.intradayDominance.h2.lastSampleAt,
+        },
+        intraday4h: {
+          components: live.intradayDominance.h4.components,
+          window: live.intradayDominance.h4.window,
+          lastSampleAt: live.intradayDominance.h4.lastSampleAt,
         },
       };
 
@@ -759,6 +769,26 @@ export async function registerRoutes(
               contribution: c.contribution,
             })),
             window: "15m/1h" as const,
+            lastSampleAt: new Date().toISOString(),
+          },
+          intraday2h: {
+            components: components.map((c) => ({
+              name: c.name,
+              score: c.score,
+              weight: c.weight,
+              contribution: c.contribution,
+            })),
+            window: "2h" as const,
+            lastSampleAt: new Date().toISOString(),
+          },
+          intraday4h: {
+            components: components.map((c) => ({
+              name: c.name,
+              score: c.score,
+              weight: c.weight,
+              contribution: c.contribution,
+            })),
+            window: "4h" as const,
             lastSampleAt: new Date().toISOString(),
           },
         };

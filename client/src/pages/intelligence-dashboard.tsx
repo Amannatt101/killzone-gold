@@ -41,6 +41,26 @@ type ScoreApi = {
       window: "15m/1h";
       lastSampleAt: string;
     };
+    intraday2h?: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "2h";
+      lastSampleAt: string;
+    };
+    intraday4h?: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "4h";
+      lastSampleAt: string;
+    };
   };
   current?: {
     realYield?: number;
@@ -277,6 +297,32 @@ export default function IntelligenceDashboardPage() {
             };
           });
 
+    const buildFallbackWindow = (label: string, amp: number, fastWeightMul: number) =>
+      macroComponents.map((c) => {
+        const centered = c.score - 50;
+        const amplified = Math.max(0, Math.min(100, 50 + centered * amp));
+        const isFastFactor = /momentum|usd|yield|risk/i.test(c.name);
+        const w = isFastFactor ? c.weight * fastWeightMul : c.weight * 0.85;
+        const weight = Math.round(w * 1000) / 1000;
+        const scoreAdj = Math.round(amplified * 10) / 10;
+        return {
+          name: `${c.name} (${label})`,
+          score: scoreAdj,
+          weight,
+          contribution: scoreAdj * weight,
+        };
+      });
+
+    const intraday2hComponents: DominanceComponent[] =
+      scoreApi?.dominanceModes?.intraday2h?.components?.length
+        ? scoreApi.dominanceModes.intraday2h.components
+        : buildFallbackWindow("2H", 1.2, 1.2);
+
+    const intraday4hComponents: DominanceComponent[] =
+      scoreApi?.dominanceModes?.intraday4h?.components?.length
+        ? scoreApi.dominanceModes.intraday4h.components
+        : buildFallbackWindow("4H", 1.1, 1.1);
+
     return {
       macro: { components: macroComponents },
       intraday: {
@@ -284,6 +330,22 @@ export default function IntelligenceDashboardPage() {
         window: scoreApi?.dominanceModes?.intraday?.window ?? ("15m/1h" as const),
         lastSampleAt:
           scoreApi?.dominanceModes?.intraday?.lastSampleAt ??
+          scoreApi?.lastFetched ??
+          new Date().toISOString(),
+      },
+      intraday2h: {
+        components: intraday2hComponents,
+        window: scoreApi?.dominanceModes?.intraday2h?.window ?? ("2h" as const),
+        lastSampleAt:
+          scoreApi?.dominanceModes?.intraday2h?.lastSampleAt ??
+          scoreApi?.lastFetched ??
+          new Date().toISOString(),
+      },
+      intraday4h: {
+        components: intraday4hComponents,
+        window: scoreApi?.dominanceModes?.intraday4h?.window ?? ("4h" as const),
+        lastSampleAt:
+          scoreApi?.dominanceModes?.intraday4h?.lastSampleAt ??
           scoreApi?.lastFetched ??
           new Date().toISOString(),
       },
@@ -505,6 +567,7 @@ export default function IntelligenceDashboardPage() {
       positioning={positioning}
       scoreLastChangedIso={scoreLastChangedIso}
       dominanceModes={dominanceModesForUI}
+      macroLastFetched={scoreApi?.lastFetched}
       topbar={topbar}
       topbarExtra={
         <>

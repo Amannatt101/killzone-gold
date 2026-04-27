@@ -323,14 +323,36 @@ export interface LiveScoreData {
   // Composite
   goldSafeHavenScore: number;
   intradayDominance: {
-    components: {
-      name: string;
-      score: number;
-      weight: number;
-      contribution: number;
-    }[];
-    window: "15m/1h";
-    lastSampleAt: string;
+    fast: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "15m/1h";
+      lastSampleAt: string;
+    };
+    h2: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "2h";
+      lastSampleAt: string;
+    };
+    h4: {
+      components: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution: number;
+      }[];
+      window: "4h";
+      lastSampleAt: string;
+    };
   };
 
   // Metadata
@@ -595,8 +617,8 @@ function appendHourlySentimentSnapshot(data: LiveScoreData): void {
 
   const { bullishPct, bearishPct } = computeBullBearFromComponents(data);
   const intradayScore =
-    data.intradayDominance.components.length > 0
-      ? data.intradayDominance.components.reduce((sum, c) => sum + c.contribution, 0)
+    data.intradayDominance.fast.components.length > 0
+      ? data.intradayDominance.fast.components.reduce((sum, c) => sum + c.contribution, 0)
       : null;
   hourlySentimentSnapshots.push({
     timestamp: now.toISOString(),
@@ -839,12 +861,40 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     );
 
     const amplifyIntraday = (s: number) => clamp(50 + (s - 50) * 1.2, 0, 100);
-    const intradayComponents = [
+    const intradayFastComponents = [
       { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.42 },
       { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.24 },
       { name: "USD Pulse", score: usdPulseScore, weight: 0.14 },
       { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.10 },
       { name: "Risk Pulse", score: riskPulseScore, weight: 0.10 },
+    ].map((c) => ({
+      ...c,
+      contribution: amplifyIntraday(c.score) * c.weight,
+      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
+    }));
+
+    const h2ImpulseScore = clamp(50 + roc1h * 55 + roc4h * 25, 0, 100);
+    const h2StructureScore = clamp(50 + (roc1h - roc8h) * 30, 0, 100);
+    const intraday2hComponents = [
+      { name: "XAU 2h Impulse", score: h2ImpulseScore, weight: 0.4 },
+      { name: "XAU 2h Structure", score: h2StructureScore, weight: 0.24 },
+      { name: "USD 2h Pulse", score: usdPulseScore, weight: 0.14 },
+      { name: "Yield 2h Pulse", score: yieldPulseScore, weight: 0.12 },
+      { name: "Risk 2h Pulse", score: riskPulseScore, weight: 0.10 },
+    ].map((c) => ({
+      ...c,
+      contribution: amplifyIntraday(c.score) * c.weight,
+      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
+    }));
+
+    const h4ImpulseScore = clamp(50 + roc4h * 45 + roc8h * 30, 0, 100);
+    const h4StructureScore = clamp(50 + (roc4h - roc24h) * 20, 0, 100);
+    const intraday4hComponents = [
+      { name: "XAU 4h Impulse", score: h4ImpulseScore, weight: 0.38 },
+      { name: "XAU 4h Structure", score: h4StructureScore, weight: 0.26 },
+      { name: "USD 4h Pulse", score: usdPulseScore, weight: 0.14 },
+      { name: "Yield 4h Pulse", score: yieldPulseScore, weight: 0.12 },
+      { name: "Risk 4h Pulse", score: riskPulseScore, weight: 0.10 },
     ].map((c) => ({
       ...c,
       contribution: amplifyIntraday(c.score) * c.weight,
@@ -882,9 +932,21 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       momentumScore: Math.round(momentumScore * 10) / 10,
       goldSafeHavenScore: Math.round(goldSafeHavenScore * 10) / 10,
       intradayDominance: {
-        components: intradayComponents,
-        window: "15m/1h",
-        lastSampleAt: new Date().toISOString(),
+        fast: {
+          components: intradayFastComponents,
+          window: "15m/1h",
+          lastSampleAt: new Date().toISOString(),
+        },
+        h2: {
+          components: intraday2hComponents,
+          window: "2h",
+          lastSampleAt: new Date().toISOString(),
+        },
+        h4: {
+          components: intraday4hComponents,
+          window: "4h",
+          lastSampleAt: new Date().toISOString(),
+        },
       },
       lastFetched: now.toISOString(),
       nextRefresh: nextRefresh.toISOString(),
@@ -918,9 +980,9 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       riskoffScore: 50, inflationScore: 50, momentumScore: 50,
       goldSafeHavenScore: 50,
       intradayDominance: {
-        components: [],
-        window: "15m/1h",
-        lastSampleAt: now.toISOString(),
+        fast: { components: [], window: "15m/1h", lastSampleAt: now.toISOString() },
+        h2: { components: [], window: "2h", lastSampleAt: now.toISOString() },
+        h4: { components: [], window: "4h", lastSampleAt: now.toISOString() },
       },
       lastFetched: now.toISOString(),
       nextRefresh: new Date(now.getTime() + REFRESH_INTERVAL_MS).toISOString(),
