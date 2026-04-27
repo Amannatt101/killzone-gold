@@ -266,6 +266,9 @@ export function IntelligenceDashboard({
                   score={topbar.score}
                   dominanceModes={dominanceModes}
                   macroLastFetched={macroLastFetched}
+                  showMacroBar={false}
+                  showIntradayBars={true}
+                  showForces={true}
                 />
                 <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
                 <ScoreHistory days={hourlySentimentDays} />
@@ -282,6 +285,15 @@ export function IntelligenceDashboard({
                   score={signal.score}
                   title={positioning.title}
                   body={positioning.body}
+                />
+                <Battlefield
+                  score={topbar.score}
+                  dominanceModes={dominanceModes}
+                  macroLastFetched={macroLastFetched}
+                  title="Macro Regime Dominance"
+                  showMacroBar={true}
+                  showIntradayBars={false}
+                  showForces={false}
                 />
                 <KillzoneTiming stats={sessionStats} />
 

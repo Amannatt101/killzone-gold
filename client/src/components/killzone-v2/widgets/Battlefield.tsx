@@ -7,6 +7,10 @@ export function Battlefield({
   score,
   dominanceModes,
   macroLastFetched,
+  title,
+  showMacroBar = true,
+  showIntradayBars = true,
+  showForces = true,
 }: {
   score?: number;
   dominanceModes?: {
@@ -30,6 +34,10 @@ export function Battlefield({
     };
   };
   macroLastFetched?: string;
+  title?: string;
+  showMacroBar?: boolean;
+  showIntradayBars?: boolean;
+  showForces?: boolean;
 }) {
   function minsAgo(iso?: string): string {
     if (!iso) return "n/a";
@@ -130,10 +138,38 @@ export function Battlefield({
     return "Mixed / No Edge: wait for clearer alignment between regime and execution.";
   })();
 
+  const barConfigs = [
+    ...(showMacroBar
+      ? [{ key: "macro", label: "Macro Regime (24h+ context)", m: macroModel, freshness: minsAgo(macroLastFetched) }]
+      : []),
+    ...(showIntradayBars
+      ? [
+          {
+            key: "intraday-4h",
+            label: "Intraday Flow (4h)",
+            m: intraday4hModel,
+            freshness: minsAgo(dominanceModes?.intraday4h?.lastSampleAt),
+          },
+          {
+            key: "intraday-2h",
+            label: "Intraday Flow (2h)",
+            m: intraday2hModel,
+            freshness: minsAgo(dominanceModes?.intraday2h?.lastSampleAt),
+          },
+          {
+            key: "intraday-fast",
+            label: "Fast Intraday Flow (15m/1h)",
+            m: intradayModel,
+            freshness: minsAgo(dominanceModes?.intraday?.lastSampleAt),
+          },
+        ]
+      : []),
+  ];
+
   return (
     <div className="w-card accent">
       <div className="w-head">
-        <div className="title">Bull vs Bear · Dominance</div>
+        <div className="title">{title ?? "Bull vs Bear · Dominance"}</div>
         <div className="meta">MACRO = DIRECTIONAL BIAS · INTRADAY = TIMING LAYER</div>
       </div>
       {splitRegime && (
@@ -153,27 +189,7 @@ export function Battlefield({
           Split Regime
         </div>
       )}
-      {[
-        { key: "macro", label: "Macro Regime (24h+ context)", m: macroModel, freshness: minsAgo(macroLastFetched) },
-        {
-          key: "intraday-fast",
-          label: "Fast Intraday Flow (15m/1h)",
-          m: intradayModel,
-          freshness: minsAgo(dominanceModes?.intraday?.lastSampleAt),
-        },
-        {
-          key: "intraday-2h",
-          label: "Intraday Flow (2h)",
-          m: intraday2hModel,
-          freshness: minsAgo(dominanceModes?.intraday2h?.lastSampleAt),
-        },
-        {
-          key: "intraday-4h",
-          label: "Intraday Flow (4h)",
-          m: intraday4hModel,
-          freshness: minsAgo(dominanceModes?.intraday4h?.lastSampleAt),
-        },
-      ].map(({ key, label, m, freshness }) => {
+      {barConfigs.map(({ key, label, m, freshness }) => {
         const mBull = Number(m.bullPct.toFixed(1));
         const mBear = Number((100 - mBull).toFixed(1));
         const mEdge = Number((mBull - mBear).toFixed(1));
@@ -231,7 +247,8 @@ export function Battlefield({
         {interpretation}
       </div>
 
-      <div className="battlefield-grid">
+      {showForces && (
+        <div className="battlefield-grid">
         <div className="bf-side bull">
           <div className="bf-head">
             <div className="bf-label bull">Supporting Forces</div>
@@ -267,6 +284,7 @@ export function Battlefield({
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }
