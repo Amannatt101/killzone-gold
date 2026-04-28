@@ -103,7 +103,27 @@ export function Battlefield({
     score,
     components: dominanceModes?.intraday4h?.components,
   });
-  const model = macroModel;
+  const intradayBlendComponents = [
+    ...(dominanceModes?.intraday4h?.components ?? []).map((c) => ({
+      ...c,
+      name: `4H · ${c.name}`,
+      weight: c.weight * 0.5,
+    })),
+    ...(dominanceModes?.intraday2h?.components ?? []).map((c) => ({
+      ...c,
+      name: `2H · ${c.name}`,
+      weight: c.weight * 0.3,
+    })),
+    ...(dominanceModes?.intraday?.components ?? []).map((c) => ({
+      ...c,
+      name: `1H · ${c.name}`,
+      weight: c.weight * 0.2,
+    })),
+  ];
+  const model = buildDominanceFromComponents({
+    score,
+    components: intradayBlendComponents,
+  });
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
   const bearPctExact = 100 - bullPctExact;
@@ -246,6 +266,19 @@ export function Battlefield({
       >
         {interpretation}
       </div>
+      {showForces && (
+        <div
+          className="mono"
+          style={{
+            marginBottom: 10,
+            fontSize: 10,
+            color: "var(--text-3)",
+            letterSpacing: "0.04em",
+          }}
+        >
+          Forces use blended intraday weighting: 4H 50% · 2H 30% · 1H 20%
+        </div>
+      )}
 
       {showForces && (
         <div className="battlefield-grid">
