@@ -2,3 +2,7 @@ node_modules/
 dist/
 *.db
 .env
+
+# Runtime snapshots (local dev / server — not for version control)
+server/data/score_log.json
+server/data/hourly_sentiment.json
