@@ -22,6 +22,7 @@ type ScoreApi = {
     weight: number;
     contribution: number;
     factorDetail?: string;
+    factorSnapshot?: { label: string; value: string }[];
   }[];
   dominanceModes?: {
     macro: {
@@ -31,6 +32,7 @@ type ScoreApi = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
     };
     intraday: {
@@ -40,6 +42,7 @@ type ScoreApi = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "15m/1h";
       lastSampleAt: string;
@@ -51,6 +54,7 @@ type ScoreApi = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "2h";
       lastSampleAt: string;
@@ -62,6 +66,7 @@ type ScoreApi = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "4h";
       lastSampleAt: string;
@@ -87,6 +92,7 @@ type DominanceComponent = {
   weight: number;
   contribution: number;
   factorDetail?: string;
+  factorSnapshot?: { label: string; value: string }[];
 };
 
 type ScoreLogApi = {
@@ -256,6 +262,7 @@ export default function IntelligenceDashboardPage() {
       weight: c.weight,
       contribution: c.contribution ?? c.score * c.weight,
       factorDetail: c.factorDetail,
+      factorSnapshot: c.factorSnapshot,
     }));
 
     // Fallback intraday transform guarantees visual divergence from macro
@@ -268,6 +275,7 @@ export default function IntelligenceDashboardPage() {
             weight: c.weight,
             contribution: c.contribution ?? c.score * c.weight,
             factorDetail: c.factorDetail,
+            factorSnapshot: c.factorSnapshot,
           }))
         : macroComponents.map((c) => {
             const centered = c.score - 50;
@@ -280,6 +288,7 @@ export default function IntelligenceDashboardPage() {
               weight: Math.round(intradayWeight * 1000) / 1000,
               contribution: (Math.round(amplified * 10) / 10) * (Math.round(intradayWeight * 1000) / 1000),
               factorDetail: c.factorDetail,
+              factorSnapshot: c.factorSnapshot,
             };
           });
 
@@ -297,6 +306,7 @@ export default function IntelligenceDashboardPage() {
           weight,
           contribution: scoreAdj * weight,
           factorDetail: c.factorDetail,
+          factorSnapshot: c.factorSnapshot,
         };
       });
 

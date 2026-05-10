@@ -35,6 +35,7 @@ export type IntelligenceDashboardProps = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
     };
     intraday: {
@@ -44,6 +45,7 @@ export type IntelligenceDashboardProps = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "15m/1h";
       lastSampleAt: string;
@@ -55,6 +57,7 @@ export type IntelligenceDashboardProps = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "2h";
       lastSampleAt: string;
@@ -66,6 +69,7 @@ export type IntelligenceDashboardProps = {
         weight: number;
         contribution: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window: "4h";
       lastSampleAt: string;

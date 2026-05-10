@@ -3,6 +3,109 @@ import {
   type DominanceForce,
 } from "../score-utils";
 
+type BfSnapshotRow = { label: string; value: string };
+
+const GOLD_SCORE_ROW_LABEL = /this row score|intraday row score/i;
+
+/** Pull % numbers from a snapshot value string (handles +0.12%, −0.05%, Unicode minus). */
+function parsePctValuesFromString(s: string): number[] {
+  const out: number[] = [];
+  const re = /([+−-]?\d+\.?\d*)\s*%/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(s)) !== null) {
+    out.push(parseFloat(m[1].replace("−", "-")));
+  }
+  return out;
+}
+
+function compactGoldSnapshotLabel(label: string): string {
+  return label.replace(/^Gold ~/, "").replace(/\s+change$/i, "").trim();
+}
+
+/** Short read on what the tape numbers imply (one line, no essay). */
+function goldTapeHint(_normalizedName: string, tapeRows: BfSnapshotRow[]): string | null {
+  if (tapeRows.length === 0) return null;
+
+  const v0 = tapeRows[0]?.value ?? "";
+  const pairFromFirst = parsePctValuesFromString(v0);
+
+  if (pairFromFirst.length >= 2) {
+    const [a, b] = pairFromFirst;
+    if (Math.abs(a - b) < 0.02) return "Both horizons in that line print about the same direction.";
+    if (a < b) return "Near-term leg weaker than the longer lookback.";
+    return "Near-term leg stronger than the longer lookback.";
+  }
+
+  if (tapeRows.length >= 2) {
+    const a = parsePctValuesFromString(tapeRows[0].value)[0];
+    const b = parsePctValuesFromString(tapeRows[1].value)[0];
+    if (a !== undefined && b !== undefined) {
+      if (a < 0 && b < 0) return "Both windows down on the feed.";
+      if (a > 0 && b > 0) return "Both windows up on the feed.";
+      return "Windows disagree—score above blends them.";
+    }
+  }
+
+  if (pairFromFirst.length === 1) {
+    const x = pairFromFirst[0];
+    if (x > 0.02) return "Logged window green.";
+    if (x < -0.02) return "Logged window red.";
+  }
+
+  return null;
+}
+
+/**
+ * Market-first line for Gold Price Action: row score vs 50, then tape figures, then a one-line tape read.
+ * Prefer this over server factorDetail so users see numbers, not prose.
+ */
+function buildGoldPriceActionBlurb(
+  normalizedName: string,
+  side: "bull" | "bear",
+  snapshot: BfSnapshotRow[] | undefined,
+): string {
+  const tapeRows =
+    snapshot?.filter((r) => !GOLD_SCORE_ROW_LABEL.test(r.label) && !/score.*amplified/i.test(r.label)) ?? [];
+
+  const scoreRow =
+    snapshot?.find((r) => GOLD_SCORE_ROW_LABEL.test(r.label)) ??
+    snapshot?.find((r) => /\/\s*100/.test(r.value));
+  const scoreM = scoreRow?.value.match(/(\d+\.?\d*)\s*\/\s*100/);
+  const scoreNum = scoreM ? parseFloat(scoreM[1]) : null;
+
+  const sideWord = side === "bull" ? "Supporting" : "Opposing";
+  const chunks: string[] = [];
+
+  if (scoreNum != null) {
+    const vs = scoreNum < 50 ? "below" : "above";
+    chunks.push(`${sideWord}: ${scoreNum.toFixed(1)}/100 (${vs} neutral 50).`);
+  } else {
+    chunks.push(`${sideWord}.`);
+  }
+
+  if (tapeRows.length > 0) {
+    chunks.push(
+      `Tape: ${tapeRows.map((r) => `${compactGoldSnapshotLabel(r.label)} ${r.value}`).join(" · ")}.`,
+    );
+  }
+
+  const hint = goldTapeHint(normalizedName, tapeRows);
+  if (hint) chunks.push(hint);
+
+  if (!scoreNum && tapeRows.length === 0) {
+    return (
+      `${sideWord}. ` +
+      "There is nothing to show yet for this row: we did not receive the usual live pieces—" +
+      "the percentage moves in gold over short windows (e.g. last ~15 minutes or ~1 hour), " +
+      "and this factor’s score out of 100 (the model compares it to 50 as neutral to decide how hard this row pushes). " +
+      "When the feed is connected and the server attaches those fields, they appear in the table above and this line fills in automatically. " +
+      "If you stay on this message, try a refresh once you’re online."
+    );
+  }
+
+  return chunks.join(" ");
+}
+
 export function Battlefield({
   score,
   dominanceModes,
@@ -21,6 +124,7 @@ export function Battlefield({
         weight: number;
         contribution?: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
     };
     intraday?: {
@@ -30,6 +134,7 @@ export function Battlefield({
         weight: number;
         contribution?: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window?: string;
       lastSampleAt?: string;
@@ -41,6 +146,7 @@ export function Battlefield({
         weight: number;
         contribution?: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window?: string;
       lastSampleAt?: string;
@@ -52,6 +158,7 @@ export function Battlefield({
         weight: number;
         contribution?: number;
         factorDetail?: string;
+        factorSnapshot?: { label: string; value: string }[];
       }[];
       window?: string;
       lastSampleAt?: string;
@@ -93,49 +200,45 @@ export function Battlefield({
     return "Macro Flow";
   }
 
+  /** Fallback when /api/score factorDetail is missing—aligned to Killzone scoring (FRED/Yahoo/GPR), not generic macro blurbs. */
   function forceExplanation(name: string, side: "bull" | "bear"): string {
+    const tag = forceReasonTag(name);
     const n = normalizeForceName(name);
+    const lean =
+      side === "bull"
+        ? "On this side because this factor’s score nets as supportive for gold after weighting."
+        : "On this side because this factor’s score nets as opposing for gold after weighting.";
 
-    if (n.includes("geopolitical") || n.includes("gpr")) {
-      return "GPR tracks geopolitical stress. Rising readings usually strengthen safe-haven demand for gold, while easing risk can fade that support.";
-    }
-    if (n.includes("central bank")) {
-      return "Central bank buying removes physical supply from the market. Stronger accumulation tends to support price floors over time.";
-    }
-    if (n.includes("etf")) {
-      return "ETF flows reflect investment appetite for gold exposure. Net inflows suggest fresh demand, while outflows often signal weaker conviction.";
-    }
-    if (n.includes("dollar")) {
-      return "Gold often trades inversely to the U.S. dollar. A softer dollar can make gold relatively cheaper globally, while dollar strength can pressure it.";
-    }
-    if (n.includes("usd pulse")) {
-      return "USD Pulse tracks the latest short-horizon move in the broad dollar index. A rising dollar usually tightens conditions for gold, while a softer dollar eases that pressure.";
-    }
-    if (n.includes("real yield")) {
-      return "Real yields are a key opportunity-cost signal for gold. Rising real yields typically pressure non-yielding assets, while falling yields are supportive.";
-    }
-    if (n.includes("yield pulse")) {
-      return "Yield Pulse reflects the newest change in real yields. If yields push up, carry pressure on gold tends to increase; if yields cool, gold usually gets breathing room.";
-    }
-    if (n.includes("risk on") || n.includes("risk sentiment")) {
-      return "Risk-on conditions shift capital toward growth and cyclical assets. That rotation can reduce defensive allocation into gold.";
-    }
-    if (n.includes("risk pulse")) {
-      return "Risk Pulse blends recent stress changes (VIX and credit spreads). Rising stress tends to support safe-haven demand for gold; easing stress can cap that bid.";
-    }
-    if (n.includes("inflation")) {
-      return "Inflation direction shapes rate expectations and hedging demand. Cooling inflation can ease urgency for defensive gold positioning.";
-    }
-    if (n.includes("momentum")) {
-      return "Momentum captures trend persistence in price behavior. Weakening momentum often reduces follow-through buying and can limit upside extension.";
-    }
-    if (n.includes("xau") || n.includes("impulse") || n.includes("acceleration") || n.includes("structure")) {
-      return "This factor is derived from live XAU/USD price action across short windows (15m to 4h). It captures whether buying/selling pressure is accelerating or fading right now.";
+    const byTag: Record<string, string> = {
+      Yields:
+        "Bonds / real yields: the return on inflation-linked government bonds (yield after inflation is stripped out). Lower yield → usually better for gold in this mix; higher yield → gold competes harder with income from bonds/cash. Big-picture macro leg (~25% of the score). The “yield pulse” row is the same idea for the very fast board.",
+      Dollar:
+        "Dollar (~20% of the score): when the feed is up, the live figures above show the exact broad dollar index, the prior observation, the step between prints, and the model score—that is the evidence behind this row. Versus the last print, a firmer dollar often weighs on gold short-term; a softer dollar often helps this leg. If this line appears without that figure block or the full server text, refresh once you’re online.",
+      Geopolitical:
+        "A geopolitical stress index from public data—think global tension and headlines, not the stock market fear index. Higher stress can support flight-to-safety demand; calmer periods can soften that bid. ~13% of the mix.",
+      "Risk On/Off":
+        "Mix of stock-market fear (VIX) and how tight risky corporate credit looks (high-yield spreads). When investors are scared or credit looks stressed, gold often scores better as a “worry” asset. ~15% of the mix.",
+      "Central Banks":
+        "A steady positive tilt for heavy central-bank gold buying in recent years (metal taken off the market by officials). It doesn’t update like live price; it’s a small anchor (~5%) while other rows move every refresh.",
+      Inflation:
+        "What bond markets imply about future inflation (breakevens). When expected inflation rises, this leg can lean bullish for gold as an inflation hedge. ~10% of the mix.",
+      Momentum:
+        "Trend and short-term price strength: gold vs its recent average, how today compares to recent days, and moves over the last hours. Moves when gold actually trades. ~12% of the mix.",
+      "Macro Flow":
+        "This label didn’t map cleanly, but it still feeds the blended score—open the live dashboard with a fresh /api/score when online for the full breakdown.",
+    };
+
+    let body = byTag[tag] ?? byTag["Macro Flow"];
+
+    if (tag === "Yields" && n.includes("pulse")) {
+      body =
+        "Quick read on the last jump in real bond yields. If yields just popped, gold often faces more competition from interest-bearing assets in the next little while.";
+    } else if (tag === "Risk On/Off" && n.includes("pulse")) {
+      body =
+        "Short-term nerves: latest move in fear (VIX) and junk-bond stress vs the last reading. Spikes here often matter more for the next few hours than slow macro averages.";
     }
 
-    return side === "bull"
-      ? "This factor is currently supportive because its latest live reading sits on the bullish side of the model. In practice, that usually means rates, dollar, risk, or short-term tape are leaning in gold's favor."
-      : "This factor is currently opposing because its latest live reading sits on the bearish side of the model. In practice, that usually means rates, dollar, risk, or short-term tape are leaning against gold.";
+    return `${body} ${lean}`;
   }
 
   const macroModel = buildDominanceFromComponents({
@@ -326,7 +429,21 @@ export function Battlefield({
                     {f.name}
                     <span className="bf-reason-tag bull">{forceReasonTag(f.name)}</span>
                   </div>
-                  <div className="bf-force-desc">{f.factorDetail ?? forceExplanation(f.name, "bull")}</div>
+                  {f.factorSnapshot && f.factorSnapshot.length > 0 && (
+                    <div className="bf-force-snapshot" aria-label="Live figures for this factor">
+                      {f.factorSnapshot.map((row, j) => (
+                        <div key={j} className="bf-force-snapshot-row">
+                          <span className="bf-force-snapshot-lbl">{row.label}</span>
+                          <span className="bf-force-snapshot-val mono">{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="bf-force-desc">
+                    {forceReasonTag(f.name) === "Gold Price Action"
+                      ? buildGoldPriceActionBlurb(normalizeForceName(f.name), "bull", f.factorSnapshot)
+                      : (f.factorDetail ?? forceExplanation(f.name, "bull"))}
+                  </div>
                 </div>
                 <div className="bf-force-wt bull">+{f.weight.toFixed(3)}</div>
               </div>
@@ -346,7 +463,21 @@ export function Battlefield({
                     {f.name}
                     <span className="bf-reason-tag bear">{forceReasonTag(f.name)}</span>
                   </div>
-                  <div className="bf-force-desc">{f.factorDetail ?? forceExplanation(f.name, "bear")}</div>
+                  {f.factorSnapshot && f.factorSnapshot.length > 0 && (
+                    <div className="bf-force-snapshot" aria-label="Live figures for this factor">
+                      {f.factorSnapshot.map((row, j) => (
+                        <div key={j} className="bf-force-snapshot-row">
+                          <span className="bf-force-snapshot-lbl">{row.label}</span>
+                          <span className="bf-force-snapshot-val mono">{row.value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="bf-force-desc">
+                    {forceReasonTag(f.name) === "Gold Price Action"
+                      ? buildGoldPriceActionBlurb(normalizeForceName(f.name), "bear", f.factorSnapshot)
+                      : (f.factorDetail ?? forceExplanation(f.name, "bear"))}
+                  </div>
                 </div>
                 <div className="bf-force-wt bear">−{f.weight.toFixed(3)}</div>
               </div>
