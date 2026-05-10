@@ -8,6 +8,10 @@ export const componentScoreSchema = z.object({
   contribution: z.number(),
   /** Server-generated copy from live macro + tape (see server/factor-narrative.ts). */
   factorDetail: z.string().optional(),
+  /** Live figures that justify the row (index levels, prior print, step %, scores). */
+  factorSnapshot: z
+    .array(z.object({ label: z.string(), value: z.string() }))
+    .optional(),
 });
 
 export type ComponentScore = z.infer<typeof componentScoreSchema>;

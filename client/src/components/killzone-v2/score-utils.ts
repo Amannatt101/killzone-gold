@@ -37,6 +37,8 @@ export function formatNextRefresh(iso: string | null | undefined): string {
   }
 }
 
+export type FactorSnapshotItem = { label: string; value: string };
+
 export type DominanceInput = {
   score?: number;
   components?: {
@@ -45,6 +47,7 @@ export type DominanceInput = {
     weight: number;
     contribution?: number;
     factorDetail?: string;
+    factorSnapshot?: FactorSnapshotItem[];
   }[];
 };
 
@@ -53,6 +56,7 @@ export type DominanceForce = {
   weight: number;
   strong?: boolean;
   factorDetail?: string;
+  factorSnapshot?: FactorSnapshotItem[];
 };
 
 export type DominanceResult = {
@@ -109,6 +113,7 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
         signed,
         abs: Math.abs(signed),
         factorDetail: c.factorDetail,
+        factorSnapshot: c.factorSnapshot,
       };
     })
     .filter((c) => c.abs > 0);
@@ -152,12 +157,14 @@ export function buildDominanceFromComponents(input: DominanceInput): DominanceRe
     weight: Number(r.abs.toFixed(3)),
     strong: i === 0,
     factorDetail: r.factorDetail,
+    factorSnapshot: r.factorSnapshot,
   }));
   const bearForces = bearRows.slice(0, 4).map((r, i) => ({
     name: r.name,
     weight: Number(r.abs.toFixed(3)),
     strong: i === 0,
     factorDetail: r.factorDetail,
+    factorSnapshot: r.factorSnapshot,
   }));
 
   return {

@@ -374,8 +374,14 @@ export interface LiveScoreData {
     roc8hPct: number;
     roc24hPct: number;
     usdMomPct: number;
+    /** Prior DTWEXBGS observation (previous FRED print vs latest). */
+    usdIndexPrior: number;
     /** Daily change in 10Y real yield (same units as latestRYChange in scoring). */
     realYieldDailyChange: number;
+    /** Prior DFII10 real yield (previous observation). */
+    realYieldPrior: number;
+    /** Prior T10YIE breakeven (previous observation). */
+    breakevenPrior: number;
     vixPrev: number;
     hyPrev: number;
   };
@@ -954,7 +960,11 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
         roc8hPct: Math.round(roc8h * 100) / 100,
         roc24hPct: Math.round(roc24h * 100) / 100,
         usdMomPct: Math.round(latestUSDRoc * 100) / 100,
+        usdIndexPrior:
+          usdValues.length >= 2 ? usdValues[usdValues.length - 2]! : latestUSD,
         realYieldDailyChange: Math.round(latestRYChange * 1000) / 1000,
+        realYieldPrior: realYieldData.at(-2)?.value ?? latestRY,
+        breakevenPrior: breakevenData.at(-2)?.value ?? latestBE,
         vixPrev: vixData.at(-2)?.value ?? latestVIX,
         hyPrev: hyData.at(-2)?.value ?? latestHY,
       },

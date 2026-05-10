@@ -2133,6 +2133,35 @@
   background: var(--bear-dim);
   border-color: rgba(239, 94, 94, 0.35);
 }
+.kz-v2 .bf-force-snapshot {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--line-1);
+  background: var(--bg-2);
+}
+.kz-v2 .bf-force-snapshot-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.kz-v2 .bf-force-snapshot-lbl {
+  color: var(--text-3);
+  flex: 1;
+  min-width: 0;
+}
+.kz-v2 .bf-force-snapshot-val {
+  color: var(--text-1);
+  text-align: right;
+  max-width: 58%;
+}
+
 .kz-v2 .bf-force-desc {
   font-size: 13px;
   line-height: 1.5;
