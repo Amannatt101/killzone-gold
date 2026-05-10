@@ -2104,9 +2104,34 @@
   gap: 4px;
 }
 .kz-v2 .bf-force-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
   font-size: 12px;
   color: var(--text-1);
   letter-spacing: -0.005em;
+}
+.kz-v2 .bf-reason-tag {
+  flex-shrink: 0;
+  font-family: "Geist Mono", monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  border-radius: 4px;
+  padding: 2px 6px;
+  border: 1px solid transparent;
+}
+.kz-v2 .bf-reason-tag.bull {
+  color: var(--bull);
+  background: var(--bull-dim);
+  border-color: rgba(91, 200, 138, 0.35);
+}
+.kz-v2 .bf-reason-tag.bear {
+  color: var(--bear);
+  background: var(--bear-dim);
+  border-color: rgba(239, 94, 94, 0.35);
 }
 .kz-v2 .bf-force-desc {
   font-size: 13px;

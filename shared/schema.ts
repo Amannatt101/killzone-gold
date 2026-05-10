@@ -6,6 +6,8 @@ export const componentScoreSchema = z.object({
   score: z.number(),
   weight: z.number(),
   contribution: z.number(),
+  /** Server-generated copy from live macro + tape (see server/factor-narrative.ts). */
+  factorDetail: z.string().optional(),
 });
 
 export type ComponentScore = z.infer<typeof componentScoreSchema>;

@@ -34,6 +34,7 @@ export type IntelligenceDashboardProps = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
     };
     intraday: {
@@ -42,6 +43,7 @@ export type IntelligenceDashboardProps = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "15m/1h";
       lastSampleAt: string;
@@ -52,6 +54,7 @@ export type IntelligenceDashboardProps = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "2h";
       lastSampleAt: string;
@@ -62,6 +65,7 @@ export type IntelligenceDashboardProps = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "4h";
       lastSampleAt: string;

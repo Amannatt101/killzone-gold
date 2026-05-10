@@ -15,20 +15,44 @@ export function Battlefield({
   score?: number;
   dominanceModes?: {
     macro?: {
-      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      components?: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution?: number;
+        factorDetail?: string;
+      }[];
     };
     intraday?: {
-      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      components?: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution?: number;
+        factorDetail?: string;
+      }[];
       window?: string;
       lastSampleAt?: string;
     };
     intraday2h?: {
-      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      components?: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution?: number;
+        factorDetail?: string;
+      }[];
       window?: string;
       lastSampleAt?: string;
     };
     intraday4h?: {
-      components?: { name: string; score: number; weight: number; contribution?: number }[];
+      components?: {
+        name: string;
+        score: number;
+        weight: number;
+        contribution?: number;
+        factorDetail?: string;
+      }[];
       window?: string;
       lastSampleAt?: string;
     };
@@ -54,6 +78,21 @@ export function Battlefield({
     return name.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
   }
 
+  function forceReasonTag(name: string): string {
+    const n = normalizeForceName(name);
+    if (n.includes("real yield") || n.includes("yield")) return "Yields";
+    if (n.includes("usd") || n.includes("dollar")) return "Dollar";
+    if (n.includes("gpr") || n.includes("geopolitical")) return "Geopolitical";
+    if (n.includes("risk")) return "Risk On/Off";
+    if (n.includes("central bank")) return "Central Banks";
+    if (n.includes("inflation") || n.includes("breakeven")) return "Inflation";
+    if (n.includes("momentum")) return "Momentum";
+    if (n.includes("xau") || n.includes("impulse") || n.includes("acceleration") || n.includes("structure")) {
+      return "Gold Price Action";
+    }
+    return "Macro Flow";
+  }
+
   function forceExplanation(name: string, side: "bull" | "bear"): string {
     const n = normalizeForceName(name);
 
@@ -69,11 +108,20 @@ export function Battlefield({
     if (n.includes("dollar")) {
       return "Gold often trades inversely to the U.S. dollar. A softer dollar can make gold relatively cheaper globally, while dollar strength can pressure it.";
     }
+    if (n.includes("usd pulse")) {
+      return "USD Pulse tracks the latest short-horizon move in the broad dollar index. A rising dollar usually tightens conditions for gold, while a softer dollar eases that pressure.";
+    }
     if (n.includes("real yield")) {
       return "Real yields are a key opportunity-cost signal for gold. Rising real yields typically pressure non-yielding assets, while falling yields are supportive.";
     }
+    if (n.includes("yield pulse")) {
+      return "Yield Pulse reflects the newest change in real yields. If yields push up, carry pressure on gold tends to increase; if yields cool, gold usually gets breathing room.";
+    }
     if (n.includes("risk on") || n.includes("risk sentiment")) {
       return "Risk-on conditions shift capital toward growth and cyclical assets. That rotation can reduce defensive allocation into gold.";
+    }
+    if (n.includes("risk pulse")) {
+      return "Risk Pulse blends recent stress changes (VIX and credit spreads). Rising stress tends to support safe-haven demand for gold; easing stress can cap that bid.";
     }
     if (n.includes("inflation")) {
       return "Inflation direction shapes rate expectations and hedging demand. Cooling inflation can ease urgency for defensive gold positioning.";
@@ -81,10 +129,13 @@ export function Battlefield({
     if (n.includes("momentum")) {
       return "Momentum captures trend persistence in price behavior. Weakening momentum often reduces follow-through buying and can limit upside extension.";
     }
+    if (n.includes("xau") || n.includes("impulse") || n.includes("acceleration") || n.includes("structure")) {
+      return "This factor is derived from live XAU/USD price action across short windows (15m to 4h). It captures whether buying/selling pressure is accelerating or fading right now.";
+    }
 
     return side === "bull"
-      ? "This factor is currently adding to supportive flow for gold, helping reinforce the broader bullish side of the balance."
-      : "This factor is currently contributing to pressure on gold, adding weight to the opposing side of the balance.";
+      ? "This factor is currently supportive because its latest live reading sits on the bullish side of the model. In practice, that usually means rates, dollar, risk, or short-term tape are leaning in gold's favor."
+      : "This factor is currently opposing because its latest live reading sits on the bearish side of the model. In practice, that usually means rates, dollar, risk, or short-term tape are leaning against gold.";
   }
 
   const macroModel = buildDominanceFromComponents({
@@ -103,27 +154,7 @@ export function Battlefield({
     score,
     components: dominanceModes?.intraday4h?.components,
   });
-  const intradayBlendComponents = [
-    ...(dominanceModes?.intraday4h?.components ?? []).map((c) => ({
-      ...c,
-      name: `4H · ${c.name}`,
-      weight: c.weight * 0.5,
-    })),
-    ...(dominanceModes?.intraday2h?.components ?? []).map((c) => ({
-      ...c,
-      name: `2H · ${c.name}`,
-      weight: c.weight * 0.3,
-    })),
-    ...(dominanceModes?.intraday?.components ?? []).map((c) => ({
-      ...c,
-      name: `1H · ${c.name}`,
-      weight: c.weight * 0.2,
-    })),
-  ];
-  const model = buildDominanceFromComponents({
-    score,
-    components: intradayBlendComponents,
-  });
+  const model = intradayModel;
   const totalFlow = Math.max(1, model.bullSum + model.bearSum);
   const bullPctExact = (model.bullSum / totalFlow) * 100;
   const bearPctExact = 100 - bullPctExact;
@@ -276,7 +307,7 @@ export function Battlefield({
             letterSpacing: "0.04em",
           }}
         >
-          Forces use blended intraday weighting: 4H 50% · 2H 30% · 1H 20%
+          Forces follow Fast Intraday Flow (15m/1h)
         </div>
       )}
 
@@ -291,8 +322,11 @@ export function Battlefield({
             {BULL_FORCES.map((f, i) => (
               <div key={i} className={`bf-force ${f.strong ? "strong" : ""}`}>
                 <div className="bf-force-main">
-                  <div className="bf-force-name">{f.name}</div>
-                  <div className="bf-force-desc">{forceExplanation(f.name, "bull")}</div>
+                  <div className="bf-force-name">
+                    {f.name}
+                    <span className="bf-reason-tag bull">{forceReasonTag(f.name)}</span>
+                  </div>
+                  <div className="bf-force-desc">{f.factorDetail ?? forceExplanation(f.name, "bull")}</div>
                 </div>
                 <div className="bf-force-wt bull">+{f.weight.toFixed(3)}</div>
               </div>
@@ -308,8 +342,11 @@ export function Battlefield({
             {BEAR_FORCES.map((f, i) => (
               <div key={i} className={`bf-force ${f.strong ? "strong" : ""}`}>
                 <div className="bf-force-main">
-                  <div className="bf-force-name">{f.name}</div>
-                  <div className="bf-force-desc">{forceExplanation(f.name, "bear")}</div>
+                  <div className="bf-force-name">
+                    {f.name}
+                    <span className="bf-reason-tag bear">{forceReasonTag(f.name)}</span>
+                  </div>
+                  <div className="bf-force-desc">{f.factorDetail ?? forceExplanation(f.name, "bear")}</div>
                 </div>
                 <div className="bf-force-wt bear">−{f.weight.toFixed(3)}</div>
               </div>

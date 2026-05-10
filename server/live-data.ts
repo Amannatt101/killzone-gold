@@ -364,6 +364,21 @@ export interface LiveScoreData {
     yahoo: boolean;
     gpr: boolean;
   };
+
+  /** Short-horizon market deltas for /api/score factor copy (Battlefield narratives). */
+  factorContext?: {
+    roc15mPct: number;
+    roc1hPct: number;
+    roc4hPct: number;
+    roc6hPct: number;
+    roc8hPct: number;
+    roc24hPct: number;
+    usdMomPct: number;
+    /** Daily change in 10Y real yield (same units as latestRYChange in scoring). */
+    realYieldDailyChange: number;
+    vixPrev: number;
+    hyPrev: number;
+  };
 }
 
 // ─── Score Log ───────────────────────────────────────────────────
@@ -931,6 +946,18 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       inflationScore: Math.round(inflationScore * 10) / 10,
       momentumScore: Math.round(momentumScore * 10) / 10,
       goldSafeHavenScore: Math.round(goldSafeHavenScore * 10) / 10,
+      factorContext: {
+        roc15mPct: Math.round(roc15m * 100) / 100,
+        roc1hPct: Math.round(roc1h * 100) / 100,
+        roc4hPct: Math.round(roc4h * 100) / 100,
+        roc6hPct: Math.round(roc6h * 100) / 100,
+        roc8hPct: Math.round(roc8h * 100) / 100,
+        roc24hPct: Math.round(roc24h * 100) / 100,
+        usdMomPct: Math.round(latestUSDRoc * 100) / 100,
+        realYieldDailyChange: Math.round(latestRYChange * 1000) / 1000,
+        vixPrev: vixData.at(-2)?.value ?? latestVIX,
+        hyPrev: hyData.at(-2)?.value ?? latestHY,
+      },
       intradayDominance: {
         fast: {
           components: intradayFastComponents,

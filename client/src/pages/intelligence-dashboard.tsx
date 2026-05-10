@@ -21,6 +21,7 @@ type ScoreApi = {
     score: number;
     weight: number;
     contribution: number;
+    factorDetail?: string;
   }[];
   dominanceModes?: {
     macro: {
@@ -29,6 +30,7 @@ type ScoreApi = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
     };
     intraday: {
@@ -37,6 +39,7 @@ type ScoreApi = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "15m/1h";
       lastSampleAt: string;
@@ -47,6 +50,7 @@ type ScoreApi = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "2h";
       lastSampleAt: string;
@@ -57,6 +61,7 @@ type ScoreApi = {
         score: number;
         weight: number;
         contribution: number;
+        factorDetail?: string;
       }[];
       window: "4h";
       lastSampleAt: string;
@@ -81,6 +86,7 @@ type DominanceComponent = {
   score: number;
   weight: number;
   contribution: number;
+  factorDetail?: string;
 };
 
 type ScoreLogApi = {
@@ -249,6 +255,7 @@ export default function IntelligenceDashboardPage() {
       score: c.score,
       weight: c.weight,
       contribution: c.contribution ?? c.score * c.weight,
+      factorDetail: c.factorDetail,
     }));
 
     // Fallback intraday transform guarantees visual divergence from macro
@@ -260,6 +267,7 @@ export default function IntelligenceDashboardPage() {
             score: c.score,
             weight: c.weight,
             contribution: c.contribution ?? c.score * c.weight,
+            factorDetail: c.factorDetail,
           }))
         : macroComponents.map((c) => {
             const centered = c.score - 50;
@@ -271,6 +279,7 @@ export default function IntelligenceDashboardPage() {
               score: Math.round(amplified * 10) / 10,
               weight: Math.round(intradayWeight * 1000) / 1000,
               contribution: (Math.round(amplified * 10) / 10) * (Math.round(intradayWeight * 1000) / 1000),
+              factorDetail: c.factorDetail,
             };
           });
 
@@ -287,6 +296,7 @@ export default function IntelligenceDashboardPage() {
           score: scoreAdj,
           weight,
           contribution: scoreAdj * weight,
+          factorDetail: c.factorDetail,
         };
       });
 

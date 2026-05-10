@@ -18,6 +18,7 @@ import {
   sendMagicLinkIfAllowed,
   validateBearerAndAllowlist,
 } from "./auth.js";
+import { enrichComponentsWithFactorDetails } from "./factor-narrative.js";
 
 // Resolve data directory - works both in dev (tsx) and prod (esbuild bundle)
 function getDataDir(): string {
@@ -703,7 +704,7 @@ export async function registerRoutes(
 
       const current = liveToMonthly(live);
 
-      const components = [
+      const componentsRaw = [
         { name: "Real Yield Direction", score: current.ryScore, weight: 0.25, contribution: current.ryScore * 0.25 },
         { name: "USD Trend", score: current.usdScore, weight: 0.20, contribution: current.usdScore * 0.20 },
         { name: "GPR Index", score: current.gprScore, weight: 0.13, contribution: current.gprScore * 0.13 },
@@ -712,20 +713,21 @@ export async function registerRoutes(
         { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
         { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
       ];
+      const components = enrichComponentsWithFactorDetails(componentsRaw, { live });
       const dominanceModes = {
         macro: { components },
         intraday: {
-          components: live.intradayDominance.fast.components,
+          components: enrichComponentsWithFactorDetails(live.intradayDominance.fast.components, { live }),
           window: live.intradayDominance.fast.window,
           lastSampleAt: live.intradayDominance.fast.lastSampleAt,
         },
         intraday2h: {
-          components: live.intradayDominance.h2.components,
+          components: enrichComponentsWithFactorDetails(live.intradayDominance.h2.components, { live }),
           window: live.intradayDominance.h2.window,
           lastSampleAt: live.intradayDominance.h2.lastSampleAt,
         },
         intraday4h: {
-          components: live.intradayDominance.h4.components,
+          components: enrichComponentsWithFactorDetails(live.intradayDominance.h4.components, { live }),
           window: live.intradayDominance.h4.window,
           lastSampleAt: live.intradayDominance.h4.lastSampleAt,
         },
@@ -750,7 +752,7 @@ export async function registerRoutes(
       try {
         const data = getData();
         const current = data[data.length - 1];
-        const components = [
+        const componentsRaw = [
           { name: "Real Yield Direction", score: current.ryScore, weight: 0.25, contribution: current.ryScore * 0.25 },
           { name: "USD Trend", score: current.usdScore, weight: 0.20, contribution: current.usdScore * 0.20 },
           { name: "GPR Index", score: current.gprScore, weight: 0.13, contribution: current.gprScore * 0.13 },
@@ -759,6 +761,7 @@ export async function registerRoutes(
           { name: "Inflation Expectations", score: current.inflationScore, weight: 0.10, contribution: current.inflationScore * 0.10 },
           { name: "Momentum", score: current.momentumScore, weight: 0.12, contribution: current.momentumScore * 0.12 },
         ];
+        const components = enrichComponentsWithFactorDetails(componentsRaw, { monthly: current });
         const dominanceModes = {
           macro: { components },
           intraday: {
@@ -767,6 +770,7 @@ export async function registerRoutes(
               score: c.score,
               weight: c.weight,
               contribution: c.contribution,
+              factorDetail: c.factorDetail,
             })),
             window: "15m/1h" as const,
             lastSampleAt: new Date().toISOString(),
@@ -777,6 +781,7 @@ export async function registerRoutes(
               score: c.score,
               weight: c.weight,
               contribution: c.contribution,
+              factorDetail: c.factorDetail,
             })),
             window: "2h" as const,
             lastSampleAt: new Date().toISOString(),
@@ -787,6 +792,7 @@ export async function registerRoutes(
               score: c.score,
               weight: c.weight,
               contribution: c.contribution,
+              factorDetail: c.factorDetail,
             })),
             window: "4h" as const,
             lastSampleAt: new Date().toISOString(),
