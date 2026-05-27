@@ -353,6 +353,10 @@ export default function IntelligenceDashboardPage() {
 
   const regimeMetrics = useMemo(() => {
     const c = scoreApi?.current;
+    const curveComponent = scoreApi?.components?.find((comp) =>
+      /10y|2y|curve|spread/i.test(comp.name),
+    );
+    const curveSnap = curveComponent?.factorSnapshot?.[0]?.value;
     return [
       {
         label: "Real Yield",
@@ -360,17 +364,31 @@ export default function IntelligenceDashboardPage() {
         sub: "live macro feed",
       },
       {
+        label: "USD Broad",
+        value: c?.usdBroad != null ? c.usdBroad.toFixed(1) : "—",
+        sub: "dollar pressure",
+      },
+      {
         label: "VIX",
         value: c?.vix != null ? c.vix.toFixed(1) : "—",
         sub: "risk proxy",
       },
       {
-        label: "USD Broad",
-        value: c?.usdBroad != null ? c.usdBroad.toFixed(1) : "—",
-        sub: "dollar pressure",
+        label: "10Y / 2Y",
+        value: curveSnap ?? "—",
+        sub: curveComponent ? "curve signal" : "awaiting feed",
       },
     ];
   }, [scoreApi]);
+
+  const scoreDelta = useMemo(() => {
+    const entries = scoreLogApi?.entries;
+    if (!entries || entries.length < 2) return null;
+    const cur = entries[entries.length - 1]?.score;
+    const prev = entries[entries.length - 2]?.score;
+    if (typeof cur !== "number" || typeof prev !== "number") return null;
+    return cur - prev;
+  }, [scoreLogApi]);
 
   const narrativeSlides = useMemo(() => {
     const liveSlides = narrativeApi?.slides?.slice(0, 4);
@@ -395,8 +413,9 @@ export default function IntelligenceDashboardPage() {
         </>
       ) : sc >= 50 ? (
         <>
-          The score sits in the <span style={{ color: "var(--warn)" }}>neutral zone</span>. Opposing
-          forces are approximately balanced; conviction here is low-value for directional exposure.
+          <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
+          Opposing pressure dominates intraday flow. Macro remains constructive, but timing is not
+          confirmed.
         </>
       ) : (
         <>
@@ -550,10 +569,13 @@ export default function IntelligenceDashboardPage() {
       sessionStats={sessionStats}
       regimeMetrics={regimeMetrics}
       narrativeSlides={narrativeSlides}
+      narrativeChanged={narrativeApi?.changed}
       positioning={positioning}
       scoreLastChangedIso={scoreLastChangedIso}
+      scoreDelta={scoreDelta}
       dominanceModes={dominanceModesForUI}
       macroLastFetched={scoreApi?.lastFetched}
+      scoreApiCurrent={scoreApi?.current}
       topbar={topbar}
       topbarExtra={
         <>
@@ -561,10 +583,11 @@ export default function IntelligenceDashboardPage() {
             type="button"
             onClick={refreshAllData}
             disabled={refreshing}
-            className="inline-flex items-center gap-1 rounded border border-[var(--line-1)] bg-[var(--bg-2)] px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-2)] hover:bg-[var(--bg-3)] disabled:cursor-not-allowed disabled:opacity-60"
+            className="kz-iconbtn"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
           >
             <RefreshCw size={12} className={refreshing ? "animate-spin" : ""} />
-            {refreshing ? "Syncing..." : "Refresh"}
+            {refreshing ? "Syncing" : "Refresh"}
           </button>
           <LogoutButton />
         </>

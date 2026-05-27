@@ -1,46 +1,28 @@
 const REGIMES = [
   {
     key: "range" as const,
-    name: "Range",
+    name: "RANGE",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M3 12h18M6 8l-3 4 3 4M18 8l3 4-3 4"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M4 12h16M7 8l-3 4 3 4M17 8l3 4-3 4" />
       </svg>
     ),
   },
   {
     key: "trend" as const,
-    name: "Trending",
+    name: "TRENDING",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M3 17l6-6 4 4 8-8M21 7h-5M21 7v5"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M4 18l5-6 4 3 7-9M14 6h6v6" />
       </svg>
     ),
   },
   {
     key: "vol" as const,
-    name: "Vol Expansion",
+    name: "VOL EXP",
     icon: (
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-        <path
-          d="M3 12h3l2-6 4 12 4-9 2 3h3"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
+        <path d="M3 12h3l2-5 4 10 2-5 2 3h5" />
       </svg>
     ),
   },
@@ -63,37 +45,21 @@ export function MarketRegime({
   const activeKey = regimeKeyFromLabel(regimeLabel);
 
   return (
-    <div className="w-card">
-      <div className="w-head">
-        <div className="title">Market Regime</div>
-        <div className="meta">FROM LIVE SCORE REGIME</div>
+    <div className="card">
+      <div className="card-head">
+        <span className="card-eyebrow">MARKET REGIME</span>
+        <span className="card-meta">FROM LIVE SCORE REGIME</span>
       </div>
-      <div className="regime-body">
-        <div className="regime-states">
+      <div style={{ padding: "18px 22px 22px" }}>
+        <div className="b-regime-buttons">
           {REGIMES.map((r) => (
-            <div key={r.key} className={`regime-state ${r.key === activeKey ? "active" : ""}`}>
-              <div className="regime-icon">{r.icon}</div>
-              <div className="regime-name">{r.name}</div>
+            <div key={r.key} className={`b-regime-btn ${r.key === activeKey ? "is-on" : ""}`}>
+              {r.icon}
+              {r.name}
             </div>
           ))}
         </div>
-        <div className="regime-desc">{regimeLabel}</div>
-        <div className="regime-metrics">
-          {(metrics?.length
-            ? metrics
-            : [
-                { label: "Model", value: "7-factor", sub: "safe haven" },
-                { label: "Horizon", value: "Macro", sub: "not intraday" },
-                { label: "Stance", value: "Context", sub: "not a signal" },
-              ]
-          ).map((m) => (
-            <div className="regime-metric" key={m.label}>
-              <div className="lbl">{m.label}</div>
-              <div className="val mono">{m.value}</div>
-              <div className="sub mono">{m.sub}</div>
-            </div>
-          ))}
-        </div>
+        <div className="b-regime-desc">{regimeLabel}</div>
       </div>
     </div>
   );

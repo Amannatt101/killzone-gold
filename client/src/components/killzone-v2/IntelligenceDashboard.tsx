@@ -1,12 +1,23 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { TWEAK_DEFAULTS_V2, V2_ACCENTS, type AccentKey } from "./accent";
-import { formatNextRefresh } from "./score-utils";
-import { Battlefield } from "./widgets/Battlefield";
+import { buildGoldDecisionBrief } from "./decision-brief";
+import {
+  buildDominanceModels,
+  type DominanceModesInput,
+} from "./dominance-models";
+import { GoldDecisionBrief } from "./GoldDecisionBrief";
+import { GoldRadar } from "./GoldRadar";
+import { GoldStatusBar } from "./GoldStatusBar";
+import { ForcesCompactPanel } from "./widgets/ForcesCompactPanel";
 import { Invalidation } from "./widgets/Invalidation";
 import { KillzoneTiming } from "./widgets/KillzoneTiming";
-import { LiveMarketNarrativeCarousel, type MarketNarrativeSlide } from "./widgets/LiveMarketNarrativeCarousel";
+import type { MarketNarrativeSlide } from "./widgets/LiveMarketNarrativeCarousel";
+import { MacroDominancePanel } from "./widgets/MacroDominancePanel";
+import { MarketNarrativeFeed } from "./widgets/MarketNarrativeFeed";
 import { MarketRegime } from "./widgets/MarketRegime";
+import { NextPulseCard } from "./widgets/NextPulseCard";
 import { PositioningBias } from "./widgets/PositioningBias";
+import { RegimeScorePanel } from "./widgets/RegimeScorePanel";
 import type { SignalData } from "./signal-types";
 
 export type IntelligenceDashboardProps = {
@@ -22,60 +33,20 @@ export type IntelligenceDashboardProps = {
   sessionStats?: Record<string, string>;
   regimeMetrics?: { label: string; value: string; sub: string }[];
   narrativeSlides?: MarketNarrativeSlide[];
+  narrativeChanged?: boolean;
   positioning: {
     title: string;
     body: ReactNode;
   };
   scoreLastChangedIso?: string;
-  dominanceModes?: {
-    macro: {
-      components: {
-        name: string;
-        score: number;
-        weight: number;
-        contribution: number;
-        factorDetail?: string;
-        factorSnapshot?: { label: string; value: string }[];
-      }[];
-    };
-    intraday: {
-      components: {
-        name: string;
-        score: number;
-        weight: number;
-        contribution: number;
-        factorDetail?: string;
-        factorSnapshot?: { label: string; value: string }[];
-      }[];
-      window: "15m/1h";
-      lastSampleAt: string;
-    };
-    intraday2h?: {
-      components: {
-        name: string;
-        score: number;
-        weight: number;
-        contribution: number;
-        factorDetail?: string;
-        factorSnapshot?: { label: string; value: string }[];
-      }[];
-      window: "2h";
-      lastSampleAt: string;
-    };
-    intraday4h?: {
-      components: {
-        name: string;
-        score: number;
-        weight: number;
-        contribution: number;
-        factorDetail?: string;
-        factorSnapshot?: { label: string; value: string }[];
-      }[];
-      window: "4h";
-      lastSampleAt: string;
-    };
-  };
+  scoreDelta?: number | null;
+  dominanceModes?: DominanceModesInput;
   macroLastFetched?: string;
+  scoreApiCurrent?: {
+    realYield?: number;
+    vix?: number;
+    usdBroad?: number;
+  };
   topbar: {
     priceDisplay: string;
     chgClass: "bull" | "bear";
@@ -97,16 +68,42 @@ export function IntelligenceDashboard({
   sessionStats,
   regimeMetrics,
   narrativeSlides,
+  narrativeChanged,
   positioning,
   scoreLastChangedIso,
+  scoreDelta,
   dominanceModes,
   macroLastFetched,
+  scoreApiCurrent,
   topbar,
   topbarExtra,
 }: IntelligenceDashboardProps) {
   const shellRef = useRef<HTMLDivElement>(null);
   const [tweaks, setTweaks] = useState(TWEAK_DEFAULTS_V2);
   const [tweaksOpen, setTweaksOpen] = useState(false);
+
+  const models = useMemo(
+    () => buildDominanceModels(topbar.score, dominanceModes),
+    [topbar.score, dominanceModes],
+  );
+
+  const brief = useMemo(
+    () =>
+      buildGoldDecisionBrief(signal, models, regimeLabel, positioning.title, {
+        scoreLastChangedIso,
+        narrativeChanged,
+        scoreDelta,
+      }),
+    [
+      signal,
+      models,
+      regimeLabel,
+      positioning.title,
+      scoreLastChangedIso,
+      narrativeChanged,
+      scoreDelta,
+    ],
+  );
 
   useEffect(() => {
     const el = shellRef.current;
@@ -144,210 +141,109 @@ export function IntelligenceDashboard({
     });
   };
 
-  const nextUp = formatNextRefresh(nextRefreshIso);
-
   return (
     <div
       ref={shellRef}
-      className="kz-v2 kz-v2-shell"
+      className="kz-v2 kz-v2-shell gold-radar-workspace"
       data-density={tweaks.density}
     >
-      <div className="app">
-        <div className="topbar">
-          <div className="brand">
-            <div className="brand-mark">K</div>
-            <div>
-              <div className="brand-name">KILLZONE</div>
-              <div className="brand-sub">Gold Intelligence</div>
-            </div>
+      <div className="gold-radar-bg" aria-hidden />
+      <div className="gold-radar-inner">
+        <GoldStatusBar
+          priceDisplay={topbar.priceDisplay}
+          chgDisplay={topbar.chgDisplay}
+          chgClass={topbar.chgClass}
+          score={topbar.score}
+          scoreTag={topbar.scoreTag}
+          regimeChip={topbar.regimeChip}
+          biasChip={topbar.biasChip}
+          liveLine={topbar.liveLine}
+          extra={topbarExtra}
+        />
+
+        <GoldDecisionBrief brief={brief} />
+
+        <div className="b-grid">
+          <div className="b-stack">
+            <RegimeScorePanel
+              score={topbar.score}
+              regimeLabel={regimeLabel}
+              intradayModel={models.intraday}
+            />
+            <MacroDominancePanel
+              macroModel={models.macro}
+              metrics={regimeMetrics}
+              macroLastFetched={macroLastFetched}
+            />
+            <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
+            <ForcesCompactPanel model={models.intraday} />
           </div>
 
-          <div className="tkr">
-            <span className="tkr-sym">XAU / USD</span>
-            <span className="tkr-tf mono">1D</span>
-            <span className="tkr-price mono">{topbar.priceDisplay}</span>
-            <span className={`tkr-chg ${topbar.chgClass} mono`}>{topbar.chgDisplay}</span>
-          </div>
+          <GoldRadar
+            score={topbar.score}
+            models={models}
+            dominanceModes={dominanceModes}
+            current={scoreApiCurrent}
+            macroLastFetched={macroLastFetched}
+          />
 
-          <div className="tkr-score">
-            <span className="lbl">SCORE</span>
-            <span className="val mono">{Math.round(topbar.score)}</span>
-            <span className="tag">{topbar.scoreTag}</span>
-          </div>
-
-          <div className="topbar-spacer" />
-
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 10px",
-                border: "1px solid var(--line-1)",
-                borderRadius: 4,
-                background: "var(--bg-2)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 9,
-                  letterSpacing: "0.18em",
-                  color: "var(--text-3)",
-                  textTransform: "uppercase",
-                }}
-              >
-                Regime
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--gold-bright)",
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {topbar.regimeChip}
-              </span>
-            </div>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "4px 10px",
-                border: "1px solid var(--line-1)",
-                borderRadius: 4,
-                background: "var(--bg-2)",
-              }}
-            >
-              <span
-                style={{
-                  fontSize: 9,
-                  letterSpacing: "0.18em",
-                  color: "var(--text-3)",
-                  textTransform: "uppercase",
-                }}
-              >
-                Bias
-              </span>
-              <span
-                style={{
-                  fontSize: 11,
-                  color: "var(--warn)",
-                  fontWeight: 600,
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {topbar.biasChip}
-              </span>
-            </div>
-            <div className="topbar-meta">
-              <span className="status-dot" />
-              <span className="mono" style={{ fontSize: 11, color: "var(--text-3)" }}>
-                {topbar.liveLine}
-              </span>
-            </div>
-            {topbarExtra}
+          <div className="b-stack">
+            <PositioningBias
+              bias={signal.bias}
+              score={signal.score}
+              title={positioning.title}
+              body={positioning.body}
+            />
+            <KillzoneTiming stats={sessionStats} />
+            <NextPulseCard nextRefreshIso={nextRefreshIso} />
           </div>
         </div>
 
-        <div className="v2-workspace">
-          <div className="v2-main">
-            <div className="v2-scroll">
-              <div className="v2-inner">
-                <Battlefield
-                  score={topbar.score}
-                  dominanceModes={dominanceModes}
-                  macroLastFetched={macroLastFetched}
-                  showMacroBar={false}
-                  showIntradayBars={true}
-                  showForces={true}
-                />
-                <LiveMarketNarrativeCarousel slides={narrativeSlides ?? []} />
-                <Invalidation rows={invalidationRows} />
-              </div>
-            </div>
-          </div>
-          <div className="v2-right">
-            <div className="v2-scroll">
-              <div className="v2-inner">
-                <KillzoneTiming stats={sessionStats} />
-                <PositioningBias
-                  bias={signal.bias}
-                  score={signal.score}
-                  title={positioning.title}
-                  body={positioning.body}
-                />
-                <Battlefield
-                  score={topbar.score}
-                  dominanceModes={dominanceModes}
-                  macroLastFetched={macroLastFetched}
-                  title="Macro Regime Dominance"
-                  showMacroBar={true}
-                  showIntradayBars={false}
-                  showForces={false}
-                />
-                <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
+        <div className="b-bottom">
+          <MarketNarrativeFeed
+            slides={narrativeSlides ?? []}
+            narrativeChanged={narrativeChanged}
+          />
+          <Invalidation rows={invalidationRows} />
+        </div>
+      </div>
 
-                <div
-                  style={{
-                    marginTop: 8,
-                    padding: "14px 4px 0",
-                    borderTop: "1px solid var(--line-1)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    fontFamily: "Geist Mono, monospace",
-                    fontSize: 10,
-                    color: "var(--text-3)",
-                    letterSpacing: "0.04em",
-                  }}
-                >
-                  <span>DATA · REUTERS · CME · ICE · FRED · GPR</span>
-                  <span>NEXT UPDATE · {nextUp}</span>
-                </div>
-              </div>
-            </div>
+      <div className={`tweaks ${tweaksOpen ? "open" : ""}`}>
+        <h4>
+          <span>Tweaks</span>
+          <span className="close" onClick={() => setTweaksOpen(false)}>
+            {"\u00D7"}
+          </span>
+        </h4>
+        <div className="row">
+          <div className="row-lbl">Accent</div>
+          <div className="swatches">
+            {(Object.keys(V2_ACCENTS) as AccentKey[]).map((k) => (
+              <div
+                key={k}
+                className={`sw ${tweaks.accent === k ? "active" : ""}`}
+                style={{ background: V2_ACCENTS[k]["--gold-bright"] }}
+                onClick={() => updateTweak("accent", k)}
+                onKeyDown={(e) => e.key === "Enter" && updateTweak("accent", k)}
+                role="button"
+                tabIndex={0}
+              />
+            ))}
           </div>
         </div>
-
-        <div className={`tweaks ${tweaksOpen ? "open" : ""}`}>
-          <h4>
-            <span>Tweaks</span>
-            <span className="close" onClick={() => setTweaksOpen(false)}>
-              {"\u00D7"}
-            </span>
-          </h4>
-          <div className="row">
-            <div className="row-lbl">Accent</div>
-            <div className="swatches">
-              {(Object.keys(V2_ACCENTS) as AccentKey[]).map((k) => (
-                <div
-                  key={k}
-                  className={`sw ${tweaks.accent === k ? "active" : ""}`}
-                  style={{ background: V2_ACCENTS[k]["--gold-bright"] }}
-                  onClick={() => updateTweak("accent", k)}
-                  onKeyDown={(e) => e.key === "Enter" && updateTweak("accent", k)}
-                  role="button"
-                  tabIndex={0}
-                />
-              ))}
-            </div>
-          </div>
-          <div className="row">
-            <div className="row-lbl">Density</div>
-            <div className="seg">
-              {(["compact", "comfortable", "spacious"] as const).map((d) => (
-                <button
-                  key={d}
-                  type="button"
-                  className={tweaks.density === d ? "active" : ""}
-                  onClick={() => updateTweak("density", d)}
-                >
-                  {d}
-                </button>
-              ))}
-            </div>
+        <div className="row">
+          <div className="row-lbl">Density</div>
+          <div className="seg">
+            {(["compact", "comfortable", "spacious"] as const).map((d) => (
+              <button
+                key={d}
+                type="button"
+                className={tweaks.density === d ? "active" : ""}
+                onClick={() => updateTweak("density", d)}
+              >
+                {d}
+              </button>
+            ))}
           </div>
         </div>
       </div>

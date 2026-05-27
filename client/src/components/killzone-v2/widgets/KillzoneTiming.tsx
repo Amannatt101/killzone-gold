@@ -1,48 +1,38 @@
+import { formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
+
 const SESSIONS = [
   {
     name: "Asia",
     start: 0,
     end: 8,
-    tz: "01:00 – 09:00 GMT+1",
-    tone: "low" as const,
-    toneLbl: "Low Volatility",
-    body: (
-      <>
-        Typically <span className="em">range-bound</span>. Liquidity thin ex-China — positioning into
-        London open matters more than price.
-      </>
-    ),
-    stat: "Avg range · 0.28%",
+    tz: "01:00 – 09:00",
+    tag: "low" as const,
+    tagLbl: "LOW VOL",
+    primary: false,
+    subLive: "Range-bound",
+    subPrimary: "Liquidity thin — positioning into London open matters.",
   },
   {
     name: "London",
     start: 7,
     end: 15,
-    tz: "08:00 – 16:00 GMT+1",
-    tone: "high" as const,
-    toneLbl: "Primary Killzone",
-    body: (
-      <>
-        Highest edge for <span className="em">breakout execution</span>. LBMA fix at 10:30 & 15:00 —
-        expect sharp directional moves if narrative pressure is unresolved.
-      </>
-    ),
-    stat: "Avg range · 0.74%",
+    tz: "08:00 – 16:00",
+    tag: "primary" as const,
+    tagLbl: "PRIMARY",
+    primary: true,
+    subLive: "London is the primary execution window.",
+    subPrimary: "London is the primary execution window.",
   },
   {
     name: "New York",
     start: 13,
     end: 21,
-    tz: "14:00 – 22:00 GMT+1",
-    tone: "med" as const,
-    toneLbl: "Secondary Killzone",
-    body: (
-      <>
-        Overlap hour drives <span className="em">two-way flow</span>. DXY-correlated — watch 14:00
-        GMT+1 cross-market reactions around U.S. data.
-      </>
-    ),
-    stat: "Avg range · 0.61%",
+    tz: "14:00 – 22:00",
+    tag: "secondary" as const,
+    tagLbl: "SECONDARY",
+    primary: false,
+    subLive: "Two-way flow at overlap",
+    subPrimary: "Opens later — watch U.S. data cross-market reactions.",
   },
 ];
 
@@ -59,7 +49,7 @@ function sessionStatus(active: boolean, s: (typeof SESSIONS)[0], nowHour: number
   const left = s.end - nowHour;
   const h = Math.floor(left);
   const m = Math.round((left - h) * 60);
-  return `Live · ${h}h ${m}m remaining`;
+  return `${s.subLive} · ${h}h ${m}m remaining`;
 }
 
 export function KillzoneTiming({
@@ -71,69 +61,57 @@ export function KillzoneTiming({
   const utcH = now.getUTCHours();
   const utcM = now.getUTCMinutes();
   const nowHour = utcH + utcM / 60;
-  const nowPct = (nowHour / 24) * 100;
+  const timeMeta = formatGmtPlus1Time(now.toISOString(), {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
 
   return (
-    <div className="w-card accent">
-      <div className="w-head">
-        <div className="title">Killzone Timing</div>
-        <div className="meta">SESSION EXPECTATIONS · GMT+1</div>
+    <div className="card">
+      <div className="card-head">
+        <span className="card-eyebrow">KILLZONE TIMING</span>
+        <span className="card-meta">
+          {GMT_PLUS_ONE_LABEL} · {timeMeta}
+        </span>
       </div>
-      <div className="kz-sessions">
-        {SESSIONS.map((s, i) => {
+      <div className="b-session-list">
+        {SESSIONS.map((s) => {
           const active = nowHour >= s.start && nowHour < s.end;
+          const upcoming =
+            !active && nowHour < s.start && s.name === "London" && nowHour >= 0;
+          const cls = [
+            "b-session",
+            active ? "is-live" : "",
+            s.primary && (active || upcoming) ? "is-primary" : "",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          let sub = sessionStatus(active, s, nowHour);
+          if (!active && s.primary && nowHour < s.start) {
+            const opensIn = s.start - nowHour;
+            const h = Math.floor(opensIn);
+            const m = Math.round((opensIn - h) * 60);
+            sub = `${s.subPrimary} Opens in ${h}h ${m}m`;
+          }
+          if (stats?.[s.name] && active) {
+            sub = `${sub.split("·")[0]?.trim() ?? s.subLive} · ${stats[s.name].replace("Avg range · ", "")}`;
+          }
+
           return (
-            <div key={i} className={`kz-session ${active ? "active" : ""}`}>
-              <div className="kz-session-head">
-                <div className="kz-session-name">
-                  <span className="kz-session-dot" />
-                  {s.name}
-                </div>
-                <div className="kz-session-time mono">{s.tz}</div>
+            <div key={s.name} className={cls}>
+              <div>
+                <div className="name">{s.name.toUpperCase()}</div>
+                <div className="time mono">{s.tz}</div>
               </div>
-              <div className="kz-session-body">{s.body}</div>
-              <div className="kz-session-footer">
-                <span className="mono">{stats?.[s.name] ?? s.stat}</span>
-                <span className={`kz-session-tone ${s.tone}`}>{s.toneLbl}</span>
+              <div className="body">
+                <div className="sub">{sub}</div>
               </div>
-              <div
-                style={{
-                  marginTop: 8,
-                  fontFamily: "Geist Mono, monospace",
-                  fontSize: 10,
-                  color: active ? "var(--gold-bright)" : "var(--text-3)",
-                  letterSpacing: "0.04em",
-                }}
-              >
-                {sessionStatus(active, s, nowHour)}
-              </div>
+              <span className={`tag ${s.tag}`}>{s.tagLbl}</span>
             </div>
           );
         })}
-      </div>
-      <div className="kz-timeline">
-        <div className="kz-track">
-          {SESSIONS.map((s, i) => (
-            <div
-              key={i}
-              className={`kz-zone ${nowHour >= s.start && nowHour < s.end ? "active" : ""}`}
-              style={{
-                left: `${(s.start / 24) * 100}%`,
-                width: `${((s.end - s.start) / 24) * 100}%`,
-              }}
-            />
-          ))}
-          <div className="kz-now" style={{ left: `${nowPct}%` }} />
-        </div>
-        <div className="kz-hours">
-          <span>00</span>
-          <span>04</span>
-          <span>08</span>
-          <span>12</span>
-          <span>16</span>
-          <span>20</span>
-          <span>24</span>
-        </div>
       </div>
     </div>
   );
