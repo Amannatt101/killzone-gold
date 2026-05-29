@@ -257,14 +257,13 @@ export function Battlefield({
     score,
     components: dominanceModes?.intraday4h?.components,
   });
-  const model = intradayModel;
-  const totalFlow = Math.max(1, model.bullSum + model.bearSum);
-  const bullPctExact = (model.bullSum / totalFlow) * 100;
-  const bearPctExact = 100 - bullPctExact;
-  const bullSum = model.bullSum;
-  const bearSum = model.bearSum;
-  const BULL_FORCES: DominanceForce[] = model.bullForces;
-  const BEAR_FORCES: DominanceForce[] = model.bearForces;
+  // Main card often shows intraday bars only; trend forces should follow macro, not 15m/1h tape.
+  const intradayOnlyCard = !showMacroBar && showIntradayBars && showForces;
+  const forcesModel = intradayOnlyCard ? macroModel : intradayModel;
+  const bullSum = forcesModel.bullSum;
+  const bearSum = forcesModel.bearSum;
+  const BULL_FORCES: DominanceForce[] = forcesModel.bullForces;
+  const BEAR_FORCES: DominanceForce[] = forcesModel.bearForces;
   const motionStrength = 0.5;
   const macroBull = macroModel.bullPct;
   const intraBull = intradayModel.bullPct;
@@ -320,11 +319,18 @@ export function Battlefield({
       : []),
   ];
 
+  const defaultTitle = intradayOnlyCard
+    ? "Intraday timing · 15m to 4h"
+    : "Bull vs Bear · Dominance";
+  const headMeta = intradayOnlyCard
+    ? "BARS = ENTRY TIMING ONLY · TREND DIRECTION IS MACRO (RIGHT PANEL)"
+    : "MACRO = DIRECTIONAL BIAS · INTRADAY = TIMING LAYER";
+
   return (
     <div className="w-card accent">
       <div className="w-head">
-        <div className="title">{title ?? "Bull vs Bear · Dominance"}</div>
-        <div className="meta">MACRO = DIRECTIONAL BIAS · INTRADAY = TIMING LAYER</div>
+        <div className="title">{title ?? defaultTitle}</div>
+        <div className="meta">{headMeta}</div>
       </div>
       {splitRegime && (
         <div
@@ -332,15 +338,19 @@ export function Battlefield({
             marginBottom: 10,
             border: "1px solid var(--line-1)",
             borderRadius: 6,
-            padding: "6px 10px",
+            padding: "8px 10px",
             fontSize: 11,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
+            letterSpacing: "0.04em",
             color: "var(--warn)",
             background: "var(--bg-2)",
           }}
         >
-          Split Regime
+          <div style={{ textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 4 }}>
+            Split regime — do not use 15m/1h as trend
+          </div>
+          <div style={{ color: "var(--text-2)", textTransform: "none", letterSpacing: "normal", lineHeight: 1.45 }}>
+            {interpretation}
+          </div>
         </div>
       )}
       {barConfigs.map(({ key, label, m, freshness }) => {
@@ -348,8 +358,18 @@ export function Battlefield({
         const mBear = Number((100 - mBull).toFixed(1));
         const mEdge = Number((mBull - mBear).toFixed(1));
         const mLeaning = mEdge > 0 ? "bull" : mEdge < 0 ? "bear" : "neutral";
-        const mLeaningLabel =
-          mLeaning === "bull" ? "LEANING BULLISH" : mLeaning === "bear" ? "LEANING BEARISH" : "BALANCED";
+        const isIntradayBar = key.startsWith("intraday");
+        const mLeaningLabel = isIntradayBar
+          ? mLeaning === "bull"
+            ? "TIMING · BULLISH"
+            : mLeaning === "bear"
+              ? "TIMING · BEARISH"
+              : "TIMING · NEUTRAL"
+          : mLeaning === "bull"
+            ? "LEANING BULLISH"
+            : mLeaning === "bear"
+              ? "LEANING BEARISH"
+              : "BALANCED";
         return (
           <div key={key} className="bf-hero" style={{ ["--bf-motion" as string]: motionStrength, marginBottom: 6, padding: "7px 9px" }}>
             <div style={{ fontSize: 8, letterSpacing: "0.06em", color: "var(--text-3)", textTransform: "uppercase", marginBottom: 2 }}>
@@ -389,17 +409,19 @@ export function Battlefield({
           </div>
         );
       })}
-      <div
-        style={{
-          marginBottom: 12,
-          borderTop: "1px solid var(--line-1)",
-          paddingTop: 10,
-          fontSize: 13,
-          color: "var(--text-2)",
-        }}
-      >
-        {interpretation}
-      </div>
+      {!splitRegime && (
+        <div
+          style={{
+            marginBottom: 12,
+            borderTop: "1px solid var(--line-1)",
+            paddingTop: 10,
+            fontSize: 13,
+            color: "var(--text-2)",
+          }}
+        >
+          {interpretation}
+        </div>
+      )}
       {showForces && (
         <div
           className="mono"
@@ -410,7 +432,9 @@ export function Battlefield({
             letterSpacing: "0.04em",
           }}
         >
-          Forces follow Fast Intraday Flow (15m/1h)
+          {intradayOnlyCard
+            ? "Supporting / opposing forces = macro trend (24h+). Bars above = timing only."
+            : "Forces follow Fast Intraday Flow (15m/1h)"}
         </div>
       )}
 

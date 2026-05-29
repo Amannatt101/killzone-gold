@@ -260,6 +260,7 @@ export function IntelligenceDashboard({
                   score={topbar.score}
                   dominanceModes={dominanceModes}
                   macroLastFetched={macroLastFetched}
+                  title="Intraday timing · 15m to 4h"
                   showMacroBar={false}
                   showIntradayBars={true}
                   showForces={true}
