@@ -163,48 +163,52 @@ export function IntelligenceDashboard({
 
         <GoldDecisionBrief brief={brief} />
 
-        <div className="b-grid">
-          <div className="b-stack">
-            <RegimeScorePanel
-              score={topbar.score}
-              regimeLabel={regimeLabel}
-              intradayModel={models.intraday}
-            />
-            <MacroDominancePanel
-              macroModel={models.macro}
-              metrics={regimeMetrics}
-              macroLastFetched={macroLastFetched}
-            />
-            <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
-            <ForcesCompactPanel model={models.intraday} />
+        <div className="gold-stage">
+          <div className="b-grid">
+            <div className="b-stack b-stack--side">
+              <RegimeScorePanel
+                score={topbar.score}
+                regimeLabel={regimeLabel}
+                intradayModel={models.intraday}
+              />
+              <MacroDominancePanel
+                macroModel={models.macro}
+                metrics={regimeMetrics}
+                macroLastFetched={macroLastFetched}
+              />
+              <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
+              <ForcesCompactPanel model={models.intraday} />
+            </div>
+
+            <div className="b-stack b-stack--radar">
+              <GoldRadar
+                score={topbar.score}
+                models={models}
+                dominanceModes={dominanceModes}
+                current={scoreApiCurrent}
+                macroLastFetched={macroLastFetched}
+              />
+            </div>
+
+            <div className="b-stack b-stack--side">
+              <PositioningBias
+                bias={signal.bias}
+                score={signal.score}
+                title={positioning.title}
+                body={positioning.body}
+              />
+              <KillzoneTiming stats={sessionStats} />
+              <NextPulseCard nextRefreshIso={nextRefreshIso} />
+            </div>
           </div>
 
-          <GoldRadar
-            score={topbar.score}
-            models={models}
-            dominanceModes={dominanceModes}
-            current={scoreApiCurrent}
-            macroLastFetched={macroLastFetched}
-          />
-
-          <div className="b-stack">
-            <PositioningBias
-              bias={signal.bias}
-              score={signal.score}
-              title={positioning.title}
-              body={positioning.body}
+          <div className="b-bottom">
+            <MarketNarrativeFeed
+              slides={narrativeSlides ?? []}
+              narrativeChanged={narrativeChanged}
             />
-            <KillzoneTiming stats={sessionStats} />
-            <NextPulseCard nextRefreshIso={nextRefreshIso} />
+            <Invalidation rows={invalidationRows} />
           </div>
-        </div>
-
-        <div className="b-bottom">
-          <MarketNarrativeFeed
-            slides={narrativeSlides ?? []}
-            narrativeChanged={narrativeChanged}
-          />
-          <Invalidation rows={invalidationRows} />
         </div>
       </div>
 
