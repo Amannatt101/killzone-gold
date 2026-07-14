@@ -115,20 +115,22 @@
 .kz-v2 .kz-topbar {
   height: 56px;
   display: grid;
-  grid-template-columns: minmax(200px, 280px) 1fr auto;
+  grid-template-columns: minmax(180px, 260px) minmax(0, 1fr) auto;
   align-items: center;
   border: 1px solid var(--line-2);
   background: linear-gradient(180deg, var(--bg-2), var(--bg-1));
   border-radius: 6px;
   padding: 0 18px 0 14px;
-  gap: 20px;
+  gap: 16px;
   flex-shrink: 0;
+  overflow: hidden;
 }
 
 .kz-v2 .kz-logo {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
 }
 
 .kz-v2 .kz-logo-mark {
@@ -144,12 +146,14 @@
   font-size: 18px;
   border-radius: 4px;
   box-shadow: inset 0 0 18px rgba(212, 175, 87, 0.1);
+  flex-shrink: 0;
 }
 
 .kz-v2 .kz-logo-text {
   display: flex;
   flex-direction: column;
   line-height: 1.05;
+  min-width: 0;
 }
 
 .kz-v2 .kz-logo-text b {
@@ -170,8 +174,10 @@
 .kz-v2 .kz-topbar-center {
   display: flex;
   align-items: center;
-  gap: 20px;
-  flex-wrap: wrap;
+  gap: 12px;
+  flex-wrap: nowrap;
+  min-width: 0;
+  overflow: hidden;
   font-family: "Geist Mono", "JetBrains Mono", monospace;
 }
 
@@ -179,12 +185,14 @@
   width: 1px;
   height: 28px;
   background: var(--line-2);
+  flex-shrink: 0;
 }
 
 .kz-v2 .kz-asset {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
 }
 
 .kz-v2 .kz-asset-pair {
@@ -229,14 +237,25 @@
 .kz-v2 .kz-pill {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 11px;
-  letter-spacing: 0.16em;
+  gap: 6px;
+  font-size: 10px;
+  letter-spacing: 0.14em;
   color: var(--text-3);
   border: 1px solid var(--line-2);
-  padding: 6px 12px;
+  padding: 5px 10px;
   border-radius: 4px;
   text-transform: uppercase;
+  white-space: nowrap;
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.kz-v2 .kz-pill-sep {
+  color: var(--text-3);
+  opacity: 0.7;
 }
 
 .kz-v2 .kz-pill b {
@@ -247,6 +266,7 @@
 .kz-v2 .kz-pill-gold {
   border-color: var(--line-gold);
   color: var(--gold-dim, var(--gold-deep));
+  flex-shrink: 0;
 }
 
 .kz-v2 .kz-pill-gold b {
@@ -617,7 +637,186 @@
   line-height: 1.35;
 }
 
-/* Radar — fills center column height; chart stays perfectly circular via container queries */
+/* Intraday timing — 3 dominance bars (Spider-V1) */
+.kz-v2 .timing-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kz-v2 .timing-bar {
+  padding: 12px 16px 14px;
+  border-bottom: 1px solid var(--line-1);
+  background:
+    radial-gradient(ellipse 80% 100% at 0% 50%, rgba(108, 166, 120, 0.04), transparent 55%),
+    radial-gradient(ellipse 80% 100% at 100% 50%, rgba(198, 106, 111, 0.04), transparent 55%);
+}
+
+.kz-v2 .timing-bar:last-child {
+  border-bottom: 0;
+}
+
+.kz-v2 .timing-bar-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.kz-v2 .timing-bar-label {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+
+.kz-v2 .timing-bar-fresh {
+  font-size: 9px;
+  color: var(--text-3);
+  letter-spacing: 0.06em;
+}
+
+.kz-v2 .timing-bar-stats {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.kz-v2 .timing-bar-side {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kz-v2 .timing-bar-side.bull {
+  text-align: left;
+}
+
+.kz-v2 .timing-bar-side.bear {
+  text-align: right;
+}
+
+.kz-v2 .timing-bar-side .lbl {
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.kz-v2 .timing-bar-side .pct {
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.03em;
+}
+
+.kz-v2 .timing-bar-side.bull .pct {
+  color: var(--green-bright);
+  text-shadow: 0 0 16px rgba(108, 166, 120, 0.25);
+}
+
+.kz-v2 .timing-bar-side.bear .pct {
+  color: var(--red-bright);
+  text-shadow: 0 0 16px rgba(198, 106, 111, 0.25);
+}
+
+.kz-v2 .timing-bar-verdict {
+  padding: 6px 10px;
+  border-radius: 4px;
+  border: 1px solid var(--line-2);
+  background: var(--bg-3);
+  text-align: center;
+  min-width: 0;
+}
+
+.kz-v2 .timing-bar-verdict.bull {
+  border-color: rgba(108, 166, 120, 0.35);
+  background: linear-gradient(135deg, rgba(108, 166, 120, 0.1), var(--bg-3));
+  box-shadow: 0 0 14px rgba(108, 166, 120, 0.08);
+}
+
+.kz-v2 .timing-bar-verdict.bear {
+  border-color: rgba(198, 106, 111, 0.35);
+  background: linear-gradient(135deg, rgba(198, 106, 111, 0.1), var(--bg-3));
+  box-shadow: 0 0 14px rgba(198, 106, 111, 0.08);
+}
+
+.kz-v2 .timing-bar-verdict .verdict-lbl {
+  display: block;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-1);
+}
+
+.kz-v2 .timing-bar-verdict.bull .verdict-lbl {
+  color: var(--green-bright);
+}
+
+.kz-v2 .timing-bar-verdict.bear .verdict-lbl {
+  color: var(--red-bright);
+}
+
+.kz-v2 .timing-bar-verdict .verdict-edge {
+  display: block;
+  font-size: 8px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+
+.kz-v2 .timing-bar-track {
+  position: relative;
+  height: 14px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-3);
+  display: flex;
+}
+
+.kz-v2 .timing-bar-track .bull {
+  background: linear-gradient(90deg, var(--green-dim), var(--green-bright));
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 6px;
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kz-v2 .timing-bar-track .bear {
+  background: linear-gradient(90deg, var(--red-bright), var(--red-dim));
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 6px;
+  margin-left: auto;
+  transition: width 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kz-v2 .timing-bar-track .track-lbl {
+  font-size: 8px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.55);
+  letter-spacing: 0.04em;
+}
+
+.kz-v2 .timing-bar-center {
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  transform: translateX(-50%);
+  background: var(--text-3);
+  opacity: 0.5;
+  z-index: 2;
+}
+
+/* Radar — 8-factor spider chart */
 .kz-v2 .radar-card {
   position: relative;
   display: flex;
@@ -625,7 +824,6 @@
   width: 100%;
   height: 100%;
   min-height: 0;
-  container-type: size;
   border: 1px solid var(--line-gold);
   border-radius: 8px;
   background: linear-gradient(165deg, #0e1016 0%, #07080c 55%, #060709 100%);
@@ -649,7 +847,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 16px;
+  padding: 8px 14px;
   border-bottom: 1px solid var(--line-1);
   flex-shrink: 0;
   position: relative;
@@ -726,39 +924,205 @@
 .kz-v2 .radar-stage-vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 75% 70% at 50% 50%, transparent 35%, rgba(0, 0, 0, 0.55) 100%);
+  background: radial-gradient(ellipse 82% 78% at 50% 50%, transparent 42%, rgba(0, 0, 0, 0.45) 100%);
 }
 
 .kz-v2 .radar-svg-wrap {
-  position: relative;
+  position: absolute;
+  inset: 0;
   z-index: 1;
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  height: 100%;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 10px;
+  container-type: size;
+  padding: 0;
   box-sizing: border-box;
 }
 
-.kz-v2 .radar-svg {
+.kz-v2 .radar-visual {
+  position: relative;
   width: min(100cqw, 100cqh);
   height: min(100cqw, 100cqh);
   max-width: 100%;
   max-height: 100%;
-  display: block;
-  flex-shrink: 0;
+  aspect-ratio: 1 / 1;
 }
 
-/* SVG micro-animations — sweep uses SVG animateTransform in component */
-.kz-v2 .radar-polygon {
-  transition: opacity 0.5s ease;
+.kz-v2 .radar-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  font-family: "Geist Mono", "JetBrains Mono", monospace;
+  overflow: visible;
+}
+
+.kz-v2 .radar-spoke {
+  cursor: pointer;
+  outline: none;
+}
+
+.kz-v2 .radar-spoke-hit {
+  pointer-events: all;
+}
+
+.kz-v2 .radar-spoke-name,
+.kz-v2 .radar-spoke-val {
+  transition: font-size 0.15s ease, fill 0.15s ease;
+  pointer-events: none;
+}
+
+.kz-v2 .radar-visual.is-focus .radar-spoke:not(.is-hot) {
+  opacity: 0.45;
+}
+
+.kz-v2 .radar-tip {
+  position: absolute;
+  z-index: 30;
+  width: min(240px, 52%);
+  padding: 12px 14px;
+  border-radius: 4px;
+  border: 1px solid rgba(212, 175, 87, 0.45);
+  background: rgba(8, 9, 12, 0.96);
+  box-shadow:
+    0 0 0 1px rgba(212, 175, 87, 0.08),
+    0 16px 36px rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  animation: radar-tip-in 0.16s ease-out;
+}
+
+.kz-v2 .radar-tip--bull {
+  border-color: rgba(108, 166, 120, 0.45);
+}
+
+.kz-v2 .radar-tip--bear {
+  border-color: rgba(198, 106, 111, 0.45);
+}
+
+.kz-v2 .radar-tip-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.kz-v2 .radar-tip-name {
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-1);
+  font-weight: 600;
+}
+
+.kz-v2 .radar-tip-val {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--gold-bright);
+  white-space: nowrap;
+}
+
+.kz-v2 .radar-tip--bull .radar-tip-val {
+  color: var(--green-bright);
+}
+
+.kz-v2 .radar-tip--bear .radar-tip-val {
+  color: var(--red-bright);
+}
+
+.kz-v2 .radar-tip-tone {
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold-bright);
+  margin-bottom: 6px;
+}
+
+.kz-v2 .radar-tip-detail {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-2);
+}
+
+@keyframes radar-tip-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -46%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.kz-v2 .radar-ring-pulse {
+  animation: radar-ring-breathe 4s ease-in-out infinite;
+}
+
+.kz-v2 .radar-polygon--fill {
+  animation: radar-poly-breathe 4.5s ease-in-out infinite;
+}
+
+.kz-v2 .radar-polygon--stroke {
+  stroke-dasharray: 5 3;
+  animation: radar-stroke-flow 14s linear infinite;
+}
+
+@keyframes radar-ring-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes radar-hub-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    stroke-width: 1;
+  }
+  50% {
+    opacity: 0.75;
+    stroke-width: 1.6;
+  }
+}
+
+@keyframes radar-poly-breathe {
+  0%,
+  100% {
+    opacity: 0.9;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes radar-stroke-flow {
+  from {
+    stroke-dashoffset: 0;
+  }
+  to {
+    stroke-dashoffset: -160;
+  }
+}
+
+.kz-v2 .radar-hub-ring {
+  animation: radar-hub-pulse 3.5s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .kz-v2 .radar-live-pip {
+  .kz-v2 .radar-live-pip,
+  .kz-v2 .radar-hub-ring,
+  .kz-v2 .radar-ring-pulse,
+  .kz-v2 .radar-polygon--fill,
+  .kz-v2 .radar-polygon--stroke,
+  .kz-v2 .radar-tip {
     animation: none;
   }
 
@@ -780,7 +1144,7 @@
 }
 
 .kz-v2 .radar-foot .cell {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-right: 1px solid var(--line-1);
   display: flex;
   flex-direction: column;
@@ -1155,7 +1519,7 @@
 }
 
 @supports not (width: 1cqw) {
-  .kz-v2 .radar-svg {
+  .kz-v2 .radar-visual {
     width: min(100%, 52vh);
     height: auto;
     aspect-ratio: 1 / 1;
@@ -1231,10 +1595,27 @@
     container-type: inline-size;
   }
 
-  .kz-v2 .radar-svg {
+  .kz-v2 .radar-visual {
     width: min(100%, 100vw - 48px);
     height: auto;
     aspect-ratio: 1 / 1;
+  }
+
+  .kz-v2 .timing-bar-side .pct {
+    font-size: 18px;
+  }
+
+  .kz-v2 .timing-bar-stats {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .kz-v2 .timing-bar-side.bear {
+    text-align: left;
+  }
+
+  .kz-v2 .timing-bar-verdict {
+    order: -1;
   }
 
   .kz-v2 .b-bottom {

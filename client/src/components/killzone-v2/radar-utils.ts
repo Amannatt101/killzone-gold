@@ -11,20 +11,31 @@ export type RadarVertex = {
   id: string;
   label: string;
   sublabel: string;
+  detail: string;
   angleDeg: number;
   normalized: number;
   side: "bull" | "bear" | "neutral";
 };
 
+const SPOKE_DETAIL: Record<string, string> = {
+  macro24h: "24h macro dominance — share of supporting vs opposing gold forces across the slow layer.",
+  curve: "10Y/2Y curve tilt — steepening or flattening pressure on gold opportunity cost.",
+  vix: "Equity fear gauge — higher VIX typically supports gold as a defensive bid.",
+  usd: "Broad USD tape — a stronger dollar usually opposes gold; weaker dollar supports.",
+  intraday4h: "4h intraday flow — execution window pressure over the last four hours.",
+  fast: "15m/1h fast tape — shortest horizon participation for or against gold.",
+  price: "1h price impulse — near-term XAU momentum confirming or fading the setup.",
+  realyield: "Real yield — higher real rates raise opportunity cost and typically oppose gold.",
+};
 const SPOKES: { id: string; label: string; angleDeg: number; match: RegExp }[] = [
-  { id: "macro24h", label: "MACRO 24H", angleDeg: -90, match: /.*/ },
-  { id: "curve", label: "10Y / 2Y", angleDeg: -45, match: /10y|2y|curve|spread/i },
-  { id: "vix", label: "VIX", angleDeg: 0, match: /vix|risk/i },
-  { id: "usd", label: "USD BROAD", angleDeg: 45, match: /usd|dollar|dxy/i },
-  { id: "intraday4h", label: "INTRADAY 4H", angleDeg: 90, match: /.*/ },
-  { id: "fast", label: "FAST TAPE", angleDeg: 135, match: /.*/ },
-  { id: "price", label: "PRICE 1H", angleDeg: 180, match: /xau|price|momentum|impulse|gold/i },
-  { id: "realyield", label: "REAL YLD", angleDeg: -135, match: /real yield|yield/i },
+  { id: "macro24h", label: "MACRO 24H", angleDeg: 0, match: /.*/ },
+  { id: "curve", label: "10Y / 2Y", angleDeg: 45, match: /10y|2y|curve|spread/i },
+  { id: "vix", label: "VIX", angleDeg: 90, match: /vix|risk/i },
+  { id: "usd", label: "USD BROAD", angleDeg: 135, match: /usd|dollar|dxy/i },
+  { id: "intraday4h", label: "INTRADAY 4H", angleDeg: 180, match: /.*/ },
+  { id: "fast", label: "FAST TAPE", angleDeg: 225, match: /.*/ },
+  { id: "price", label: "PRICE 1H", angleDeg: 270, match: /xau|price|momentum|impulse|gold/i },
+  { id: "realyield", label: "REAL YLD", angleDeg: 315, match: /real yield|yield/i },
 ];
 
 function clamp(n: number, min: number, max: number): number {
@@ -60,7 +71,7 @@ function formatVertexValue(id: string, norm: number, current?: RadarCurrent, com
     return `${current.usdBroad.toFixed(1)} ${arrow}`;
   }
   if (component?.factorSnapshot?.[0]?.value) {
-    return component.factorSnapshot[0].value.slice(0, 12);
+    return component.factorSnapshot[0].value.slice(0, 14);
   }
   const pct = (norm * 100).toFixed(1);
   return `${norm >= 0 ? "+" : ""}${pct}%`;
@@ -112,18 +123,30 @@ export function buildRadarVertices(
   return SPOKES.map((spoke) => {
     const norm = values[spoke.id] ?? 0;
     const side: RadarVertex["side"] = norm > 0.08 ? "bull" : norm < -0.08 ? "bear" : "neutral";
+    const component = components[spoke.id];
+    const snapshot = component?.factorSnapshot
+      ?.map((s) => `${s.label}: ${s.value}`)
+      .join(" · ");
+    const detailParts = [
+      SPOKE_DETAIL[spoke.id],
+      component?.factorDetail,
+      snapshot,
+      `Pressure ${norm >= 0 ? "+" : ""}${(norm * 100).toFixed(1)}% · ${side.toUpperCase()}`,
+    ].filter(Boolean);
+
     return {
       id: spoke.id,
       label: spoke.label,
       angleDeg: spoke.angleDeg,
       normalized: norm,
       side,
-      sublabel: formatVertexValue(spoke.id, norm, current, components[spoke.id]),
+      sublabel: formatVertexValue(spoke.id, norm, current, component),
+      detail: detailParts.join(" "),
     };
   });
 }
 
-export function vertexToPoint(norm: number, angleDeg: number, minR = 100, maxR = 235): { x: number; y: number } {
+export function vertexToPoint(norm: number, angleDeg: number, minR = 95, maxR = 228): { x: number; y: number } {
   const effectiveR = minR + Math.abs(norm) * (maxR - minR);
   const rad = (angleDeg * Math.PI) / 180;
   return {
@@ -139,6 +162,11 @@ export function polygonPoints(vertices: RadarVertex[]): string {
       return `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
     })
     .join(" ");
+}
+
+/** Fixed outer label anchor so values don't collide with the hub or each other. */
+export function labelAnchor(angleDeg: number, radius = 252): { x: number; y: number } {
+  return vertexToPoint(1, angleDeg, radius, radius);
 }
 
 export function radarConviction(macro: DominanceResult, intraday: DominanceResult, split: boolean): string {

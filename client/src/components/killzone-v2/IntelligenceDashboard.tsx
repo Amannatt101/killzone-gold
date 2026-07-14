@@ -8,7 +8,7 @@ import {
 import { GoldDecisionBrief } from "./GoldDecisionBrief";
 import { GoldRadar } from "./GoldRadar";
 import { GoldStatusBar } from "./GoldStatusBar";
-import { ForcesCompactPanel } from "./widgets/ForcesCompactPanel";
+import { IntradayTimingPanel } from "./widgets/IntradayTimingPanel";
 import { Invalidation } from "./widgets/Invalidation";
 import { KillzoneTiming } from "./widgets/KillzoneTiming";
 import type { MarketNarrativeSlide } from "./widgets/LiveMarketNarrativeCarousel";
@@ -176,8 +176,8 @@ export function IntelligenceDashboard({
                 metrics={regimeMetrics}
                 macroLastFetched={macroLastFetched}
               />
+              <IntradayTimingPanel models={models} dominanceModes={dominanceModes} />
               <MarketRegime regimeLabel={regimeLabel} metrics={regimeMetrics} />
-              <ForcesCompactPanel model={models.intraday} />
             </div>
 
             <div className="b-stack b-stack--radar">

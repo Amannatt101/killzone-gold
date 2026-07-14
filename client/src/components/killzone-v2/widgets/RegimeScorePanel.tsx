@@ -20,6 +20,7 @@ export function RegimeScorePanel({
 }) {
   const bull = intradayModel.bullPct;
   const bear = intradayModel.bearPct;
+  const posture = scoreLabel(score);
 
   return (
     <div className="card card-gold b-score-card">
@@ -33,7 +34,8 @@ export function RegimeScorePanel({
           <em> /100</em>
         </div>
       </div>
-      <div style={{ fontSize: 16, color: "var(--text-1)", lineHeight: 1.35 }}>{regimeLabel}</div>
+      <div style={{ fontSize: 15, color: "var(--text-1)", lineHeight: 1.35, fontWeight: 500 }}>{posture}</div>
+      <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.4 }}>{regimeLabel}</div>
       <div className="b-mini-pbar">
         <div className="row">
           <span className="lab">SUPPORTING GOLD</span>
@@ -48,9 +50,6 @@ export function RegimeScorePanel({
             {bear.toFixed(1)}%
           </span>
         </div>
-      </div>
-      <div style={{ fontSize: 11, color: "var(--text-3)", letterSpacing: "0.12em" }}>
-        {scoreLabel(score)}
       </div>
     </div>
   );
