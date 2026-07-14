@@ -1,4 +1,4 @@
-import { useId, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useId, useMemo, useState, type CSSProperties } from "react";
 import { formatGmtPlus1Time, GMT_PLUS_ONE_LABEL } from "@/lib/timezone";
 import type { DominanceModesInput, DominanceModels } from "./dominance-models";
 import { splitRegimeFlag } from "./dominance-models";
@@ -25,16 +25,17 @@ function sideTone(side: RadarVertex["side"]): string {
   return "Balanced / neutral";
 }
 
-function tipPosition(angleDeg: number): CSSProperties {
-  // Keep tip toward outer edge of that spoke so it never covers the hub.
-  const rad = (angleDeg * Math.PI) / 180;
-  const x = 50 + Math.sin(rad) * 34;
-  const y = 50 - Math.cos(rad) * 34;
-  return {
-    left: `${x}%`,
-    top: `${y}%`,
-    transform: "translate(-50%, -50%)",
-  };
+/** Label offset tuned per compass so text sits outside the ring and never stacks on the polygon. */
+function labelTextOffsets(angleDeg: number): { nameDy: number; valueDy: number; anchor: "start" | "middle" | "end" } {
+  const a = ((angleDeg % 360) + 360) % 360;
+  if (a < 20 || a > 340) return { nameDy: -10, valueDy: 2, anchor: "middle" }; // N
+  if (a < 70) return { nameDy: -8, valueDy: 4, anchor: "start" }; // NE
+  if (a < 110) return { nameDy: -6, valueDy: 6, anchor: "start" }; // E
+  if (a < 160) return { nameDy: 4, valueDy: 16, anchor: "start" }; // SE
+  if (a < 200) return { nameDy: 8, valueDy: 20, anchor: "middle" }; // S
+  if (a < 250) return { nameDy: 4, valueDy: 16, anchor: "end" }; // SW
+  if (a < 290) return { nameDy: -6, valueDy: 6, anchor: "end" }; // W
+  return { nameDy: -8, valueDy: 4, anchor: "end" }; // NW
 }
 
 export function GoldRadar({
@@ -52,6 +53,7 @@ export function GoldRadar({
 }) {
   const uid = useId().replace(/:/g, "");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
 
   const vertices = useMemo(
     () =>
@@ -68,7 +70,9 @@ export function GoldRadar({
   );
 
   const poly = useMemo(() => polygonPoints(vertices), [vertices]);
-  const hovered = vertices.find((v) => v.id === hoveredId) ?? null;
+  const activeId = pinnedId ?? hoveredId;
+  const active = vertices.find((v) => v.id === activeId) ?? null;
+
   const split = splitRegimeFlag(models.macro, models.intraday);
   const intra = models.intraday;
   const bullPct = intra.bullPct;
@@ -80,6 +84,18 @@ export function GoldRadar({
   const timeLabel = macroLastFetched
     ? `${formatGmtPlus1Time(macroLastFetched, { hour: "2-digit", minute: "2-digit" })} ${GMT_PLUS_ONE_LABEL}`
     : GMT_PLUS_ONE_LABEL;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setPinnedId(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  const togglePin = (id: string) => {
+    setPinnedId((prev) => (prev === id ? null : id));
+  };
 
   return (
     <div
@@ -108,25 +124,25 @@ export function GoldRadar({
         </div>
 
         <div className="radar-svg-wrap">
-          <div className={`radar-visual${hovered ? " is-focus" : ""}`}>
+          <div className={`radar-visual${active ? " is-focus" : ""}`}>
             <svg
               className="radar-svg"
-              viewBox="-272 -272 544 544"
+              viewBox="-300 -300 600 600"
               preserveAspectRatio="xMidYMid meet"
               aria-label="Gold pressure radar"
             >
               <defs>
                 <radialGradient id={`${uid}-rGlow`} cx="50%" cy="50%" r="50%">
-                  <stop offset="0%" stopColor="#d4af57" stopOpacity="0.35" />
-                  <stop offset="55%" stopColor="#d4af57" stopOpacity="0.08" />
+                  <stop offset="0%" stopColor="#d4af57" stopOpacity="0.28" />
+                  <stop offset="60%" stopColor="#d4af57" stopOpacity="0.06" />
                   <stop offset="100%" stopColor="#d4af57" stopOpacity="0" />
                 </radialGradient>
                 <radialGradient id={`${uid}-rBull`} cx="50%" cy="0%" r="85%">
-                  <stop offset="0%" stopColor="#6ca678" stopOpacity="0.45" />
+                  <stop offset="0%" stopColor="#6ca678" stopOpacity="0.4" />
                   <stop offset="100%" stopColor="#6ca678" stopOpacity="0" />
                 </radialGradient>
                 <radialGradient id={`${uid}-rBear`} cx="50%" cy="100%" r="85%">
-                  <stop offset="0%" stopColor="#c66a6f" stopOpacity="0.45" />
+                  <stop offset="0%" stopColor="#c66a6f" stopOpacity="0.4" />
                   <stop offset="100%" stopColor="#c66a6f" stopOpacity="0" />
                 </radialGradient>
                 <linearGradient id={`${uid}-bullArc`} x1="0%" y1="0%" x2="100%" y2="0%">
@@ -140,12 +156,12 @@ export function GoldRadar({
                   <stop offset="100%" stopColor="#c66a6f" stopOpacity="0.05" />
                 </linearGradient>
                 <linearGradient id={`${uid}-polyFill`} x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#8fc89a" stopOpacity="0.12" />
-                  <stop offset="50%" stopColor="#d4af57" stopOpacity="0.18" />
-                  <stop offset="100%" stopColor="#dc8a8e" stopOpacity="0.12" />
+                  <stop offset="0%" stopColor="#8fc89a" stopOpacity="0.1" />
+                  <stop offset="50%" stopColor="#d4af57" stopOpacity="0.16" />
+                  <stop offset="100%" stopColor="#dc8a8e" stopOpacity="0.1" />
                 </linearGradient>
                 <filter id={`${uid}-glow`} x="-40%" y="-40%" width="180%" height="180%">
-                  <feGaussianBlur stdDeviation="2.2" result="blur" />
+                  <feGaussianBlur stdDeviation="2" result="blur" />
                   <feMerge>
                     <feMergeNode in="blur" />
                     <feMergeNode in="SourceGraphic" />
@@ -153,10 +169,10 @@ export function GoldRadar({
                 </filter>
               </defs>
 
-              <circle cx="0" cy="-36" r="255" fill={`url(#${uid}-rBull)`} />
-              <circle cx="0" cy="36" r="255" fill={`url(#${uid}-rBear)`} />
+              <circle cx="0" cy="-30" r="270" fill={`url(#${uid}-rBull)`} />
+              <circle cx="0" cy="30" r="270" fill={`url(#${uid}-rBear)`} />
 
-              {[245, 205, 165, 125, 95].map((r, i) => (
+              {[255, 210, 165, 120, 90].map((r, i) => (
                 <circle
                   key={r}
                   cx="0"
@@ -165,37 +181,37 @@ export function GoldRadar({
                   fill={i === 3 ? `url(#${uid}-rGlow)` : "none"}
                   stroke={
                     i === 4
-                      ? "rgba(212,175,87,0.35)"
+                      ? "rgba(212,175,87,0.32)"
                       : i === 2
                         ? "rgba(255,255,255,0.07)"
-                        : "rgba(255,255,255,0.04)"
+                        : "rgba(255,255,255,0.045)"
                   }
-                  strokeWidth={i === 4 ? 1.5 : 1}
+                  strokeWidth={i === 4 ? 1.4 : 1}
                   strokeDasharray={i === 2 ? "3 5" : undefined}
                   className={i === 4 ? "radar-ring-pulse" : undefined}
                 />
               ))}
 
-              <g stroke="rgba(255,255,255,0.07)" strokeWidth="1">
-                <line x1="0" y1="-245" x2="0" y2="245" />
-                <line x1="-245" y1="0" x2="245" y2="0" />
-                <line x1="-173" y1="-173" x2="173" y2="173" />
-                <line x1="-173" y1="173" x2="173" y2="-173" />
+              <g stroke="rgba(255,255,255,0.06)" strokeWidth="1">
+                <line x1="0" y1="-255" x2="0" y2="255" />
+                <line x1="-255" y1="0" x2="255" y2="0" />
+                <line x1="-180" y1="-180" x2="180" y2="180" />
+                <line x1="-180" y1="180" x2="180" y2="-180" />
               </g>
 
               <path
-                d="M -228 0 A 228 228 0 0 1 228 0"
+                d="M -235 0 A 235 235 0 0 1 235 0"
                 fill="none"
                 stroke={`url(#${uid}-bullArc)`}
-                strokeWidth="2.5"
+                strokeWidth="2.4"
                 strokeLinecap="square"
                 opacity={models.macro.bullPct / 100}
               />
               <path
-                d="M 228 0 A 228 228 0 0 1 -228 0"
+                d="M 235 0 A 235 235 0 0 1 -235 0"
                 fill="none"
                 stroke={`url(#${uid}-bearArc)`}
-                strokeWidth="2.5"
+                strokeWidth="2.4"
                 strokeLinecap="square"
                 opacity={models.intraday.bearPct / 100}
               />
@@ -204,26 +220,35 @@ export function GoldRadar({
                 className="radar-sweep"
                 cx="0"
                 cy="0"
-                r="238"
+                r="248"
                 fill="none"
-                stroke="rgba(212,175,87,0.2)"
-                strokeWidth="1.25"
-                strokeDasharray="36 1480"
+                stroke="rgba(212,175,87,0.16)"
+                strokeWidth="1.2"
+                strokeDasharray="34 1500"
               >
                 <animateTransform
                   attributeName="transform"
                   type="rotate"
                   from="0 0 0"
                   to="360 0 0"
-                  dur="11s"
+                  dur="12s"
                   repeatCount="indefinite"
                 />
               </circle>
 
-              <text x="0" y="-258" textAnchor="middle" fill="#6ca678" fontSize="8.5" letterSpacing="2.2" opacity="0.85">
+              {/* Hemisphere labels in corners — away from factor labels */}
+              <text x="-275" y="-275" fill="#6ca678" fontSize="9" letterSpacing="2.2" opacity="0.8">
                 ↑ BULL HEMISPHERE · MACRO
               </text>
-              <text x="0" y="264" textAnchor="middle" fill="#c66a6f" fontSize="8.5" letterSpacing="2.2" opacity="0.85">
+              <text
+                x="275"
+                y="285"
+                textAnchor="end"
+                fill="#c66a6f"
+                fontSize="9"
+                letterSpacing="2.2"
+                opacity="0.8"
+              >
                 INTRADAY · BEAR HEMISPHERE ↓
               </text>
 
@@ -239,54 +264,64 @@ export function GoldRadar({
                 points={poly}
                 fill="none"
                 stroke="#e8c878"
-                strokeWidth="2"
+                strokeWidth="1.8"
                 strokeLinejoin="miter"
                 strokeMiterlimit="8"
               />
 
               {vertices.map((v, idx) => {
                 const p = vertexToPoint(v.normalized, v.angleDeg);
-                const lbl = labelAnchor(v.angleDeg, 248);
+                const lbl = labelAnchor(v.angleDeg, 262);
                 const color = VERTEX_COLOR[v.side];
-                const isHot = hoveredId === v.id;
-                const nameDy = Math.abs(lbl.x) > 40 ? -6 : lbl.y < 0 ? -8 : 4;
-                const valueDy = nameDy + 12;
+                const isHot = activeId === v.id;
+                const isPinned = pinnedId === v.id;
+                const { nameDy, valueDy, anchor } = labelTextOffsets(v.angleDeg);
 
                 return (
                   <g
                     key={v.id}
-                    className={`radar-spoke${isHot ? " is-hot" : ""}`}
+                    className={`radar-spoke${isHot ? " is-hot" : ""}${isPinned ? " is-pinned" : ""}`}
                     onMouseEnter={() => setHoveredId(v.id)}
                     onMouseLeave={() => setHoveredId(null)}
                     onFocus={() => setHoveredId(v.id)}
                     onBlur={() => setHoveredId(null)}
+                    onClick={() => togglePin(v.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        togglePin(v.id);
+                      }
+                    }}
                     tabIndex={0}
                     role="button"
+                    aria-pressed={isPinned}
                     aria-label={`${v.label} ${v.sublabel}. ${v.detail}`}
                   >
-                    {/* Invisible hit target */}
-                    <circle cx={lbl.x} cy={lbl.y} r="28" fill="transparent" className="radar-spoke-hit" />
-                    <circle cx={p.x} cy={p.y} r="22" fill="transparent" className="radar-spoke-hit" />
+                    {/* Hit only the node — keeps the graph free */}
+                    <circle cx={p.x} cy={p.y} r="16" fill="transparent" className="radar-spoke-hit" />
 
-                    <circle cx={p.x} cy={p.y} r={isHot ? 8 : 6} fill={color} opacity={isHot ? 0.32 : 0.18}>
+                    <circle cx={p.x} cy={p.y} r={isHot ? 7 : 5} fill={color} opacity={isHot ? 0.3 : 0.16}>
                       <animate
                         attributeName="r"
-                        values={isHot ? "7;10;7" : "5;7;5"}
-                        dur={`${2.2 + (idx % 4) * 0.3}s`}
+                        values={isHot ? "6;8;6" : "4.5;6;4.5"}
+                        dur={`${2.3 + (idx % 4) * 0.28}s`}
                         repeatCount="indefinite"
                       />
                     </circle>
-                    <circle cx={p.x} cy={p.y} r={isHot ? 4.2 : 3.2} fill={color} />
+                    <circle cx={p.x} cy={p.y} r={isHot ? 3.8 : 3} fill={color} />
+                    {isPinned ? (
+                      <circle cx={p.x} cy={p.y} r="9" fill="none" stroke={color} strokeWidth="1" opacity="0.7" />
+                    ) : null}
 
                     <text
                       className="radar-spoke-name"
                       x={lbl.x}
                       y={lbl.y + nameDy}
-                      textAnchor="middle"
-                      fill={isHot ? "#ece8db" : "#9a9689"}
-                      fontSize={isHot ? 11 : 9}
-                      letterSpacing="1.1"
-                      fontWeight={isHot ? 600 : 500}
+                      textAnchor={anchor}
+                      fill={isHot ? "#ece8db" : "#b6b1a4"}
+                      fontSize="9.5"
+                      letterSpacing="1.2"
+                      fontWeight="500"
                     >
                       {v.label}
                     </text>
@@ -294,9 +329,9 @@ export function GoldRadar({
                       className="radar-spoke-val"
                       x={lbl.x}
                       y={lbl.y + valueDy}
-                      textAnchor="middle"
+                      textAnchor={anchor}
                       fill={color}
-                      fontSize={isHot ? 13 : 9.5}
+                      fontSize="9"
                       fontWeight="600"
                     >
                       {v.sublabel}
@@ -305,17 +340,17 @@ export function GoldRadar({
                 );
               })}
 
-              <circle cx="0" cy="0" r="70" fill="#080a0e" stroke="rgba(212,175,87,0.5)" strokeWidth="1.2" />
+              <circle cx="0" cy="0" r="72" fill="#080a0e" stroke="rgba(212,175,87,0.48)" strokeWidth="1.2" />
               <circle
                 className="radar-hub-ring"
                 cx="0"
                 cy="0"
-                r="80"
+                r="82"
                 fill="none"
-                stroke="rgba(212,175,87,0.22)"
+                stroke="rgba(212,175,87,0.2)"
                 strokeWidth="1"
               />
-              <text x="0" y="-28" textAnchor="middle" fill="#6b6e75" fontSize="8" letterSpacing="2.5">
+              <text x="0" y="-30" textAnchor="middle" fill="#6b6e75" fontSize="8" letterSpacing="2.5">
                 SCORE
               </text>
               <text
@@ -323,38 +358,54 @@ export function GoldRadar({
                 y="14"
                 textAnchor="middle"
                 fill="#ece8db"
-                fontSize="40"
+                fontSize="42"
                 fontWeight="600"
                 letterSpacing="-2"
               >
                 {Math.round(score)}
               </text>
-              <text x="0" y="38" textAnchor="middle" fill="#ecc878" fontSize="9" letterSpacing="2.5">
+              <text x="0" y="40" textAnchor="middle" fill="#ecc878" fontSize="9" letterSpacing="2.5">
                 {biasWord}
               </text>
               {split ? (
-                <text x="0" y="54" textAnchor="middle" fill="#c9a24b" fontSize="7" letterSpacing="1.5">
+                <text x="0" y="56" textAnchor="middle" fill="#c9a24b" fontSize="7" letterSpacing="1.5">
                   SPLIT
                 </text>
               ) : null}
             </svg>
-
-            {hovered ? (
-              <div
-                className={`radar-tip radar-tip--${hovered.side}`}
-                style={tipPosition(hovered.angleDeg)}
-                role="tooltip"
-              >
-                <div className="radar-tip-head">
-                  <span className="radar-tip-name">{hovered.label}</span>
-                  <span className="radar-tip-val mono">{hovered.sublabel}</span>
-                </div>
-                <div className="radar-tip-tone">{sideTone(hovered.side)}</div>
-                <p className="radar-tip-detail">{hovered.detail}</p>
-              </div>
-            ) : null}
           </div>
         </div>
+      </div>
+
+      {/* Detail lives OUTSIDE the chart — never overlays the spider */}
+      <div
+        className={`radar-inspect${active ? ` is-active radar-inspect--${active.side}` : ""}${pinnedId ? " is-pinned" : ""}`}
+        aria-live="polite"
+      >
+        {active ? (
+          <>
+            <div className="radar-inspect-main">
+              <span className="radar-inspect-k">{active.label}</span>
+              <span className="radar-inspect-v mono">{active.sublabel}</span>
+              <span className="radar-inspect-tone">{sideTone(active.side)}</span>
+            </div>
+            <p className="radar-inspect-detail">{active.detail}</p>
+            {pinnedId ? (
+              <button
+                type="button"
+                className="radar-inspect-clear"
+                onClick={() => setPinnedId(null)}
+                aria-label="Unpin factor"
+              >
+                Unpin
+              </button>
+            ) : (
+              <span className="radar-inspect-hint">Click node to pin</span>
+            )}
+          </>
+        ) : (
+          <span className="radar-inspect-idle">Hover a factor node · click to pin detail here</span>
+        )}
       </div>
 
       <div className="radar-foot">

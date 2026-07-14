@@ -969,93 +969,124 @@
 
 .kz-v2 .radar-spoke-name,
 .kz-v2 .radar-spoke-val {
-  transition: font-size 0.15s ease, fill 0.15s ease;
   pointer-events: none;
 }
 
 .kz-v2 .radar-visual.is-focus .radar-spoke:not(.is-hot) {
-  opacity: 0.45;
+  opacity: 0.55;
 }
 
-.kz-v2 .radar-tip {
-  position: absolute;
-  z-index: 30;
-  width: min(240px, 52%);
-  padding: 12px 14px;
-  border-radius: 4px;
-  border: 1px solid rgba(212, 175, 87, 0.45);
-  background: rgba(8, 9, 12, 0.96);
-  box-shadow:
-    0 0 0 1px rgba(212, 175, 87, 0.08),
-    0 16px 36px rgba(0, 0, 0, 0.55);
-  backdrop-filter: blur(10px);
-  pointer-events: none;
-  animation: radar-tip-in 0.16s ease-out;
+/* Inspect dock — reserved strip under chart, never covers the spider */
+.kz-v2 .radar-inspect {
+  position: relative;
+  z-index: 3;
+  flex-shrink: 0;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--line-1);
+  background: rgba(6, 7, 9, 0.92);
 }
 
-.kz-v2 .radar-tip--bull {
-  border-color: rgba(108, 166, 120, 0.45);
+.kz-v2 .radar-inspect.is-active {
+  background: linear-gradient(90deg, rgba(212, 175, 87, 0.06), rgba(6, 7, 9, 0.92) 55%);
 }
 
-.kz-v2 .radar-tip--bear {
-  border-color: rgba(198, 106, 111, 0.45);
+.kz-v2 .radar-inspect--bull.is-active {
+  background: linear-gradient(90deg, rgba(108, 166, 120, 0.08), rgba(6, 7, 9, 0.92) 55%);
 }
 
-.kz-v2 .radar-tip-head {
+.kz-v2 .radar-inspect--bear.is-active {
+  background: linear-gradient(90deg, rgba(198, 106, 111, 0.08), rgba(6, 7, 9, 0.92) 55%);
+}
+
+.kz-v2 .radar-inspect.is-pinned {
+  border-top-color: rgba(212, 175, 87, 0.35);
+}
+
+.kz-v2 .radar-inspect-idle {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+}
+
+.kz-v2 .radar-inspect-main {
   display: flex;
+  flex-wrap: wrap;
   align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 6px;
+  gap: 8px 12px;
+  min-width: 0;
 }
 
-.kz-v2 .radar-tip-name {
-  font-size: 12px;
-  letter-spacing: 0.14em;
+.kz-v2 .radar-inspect-k {
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--text-1);
   font-weight: 600;
 }
 
-.kz-v2 .radar-tip-val {
-  font-size: 15px;
+.kz-v2 .radar-inspect-v {
+  font-size: 16px;
   font-weight: 600;
   color: var(--gold-bright);
-  white-space: nowrap;
 }
 
-.kz-v2 .radar-tip--bull .radar-tip-val {
+.kz-v2 .radar-inspect--bull .radar-inspect-v {
   color: var(--green-bright);
 }
 
-.kz-v2 .radar-tip--bear .radar-tip-val {
+.kz-v2 .radar-inspect--bear .radar-inspect-v {
   color: var(--red-bright);
 }
 
-.kz-v2 .radar-tip-tone {
+.kz-v2 .radar-inspect-tone {
   font-size: 9px;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--gold-bright);
-  margin-bottom: 6px;
+  color: var(--text-3);
+  padding: 2px 7px;
+  border: 1px solid var(--line-2);
+  border-radius: 2px;
 }
 
-.kz-v2 .radar-tip-detail {
+.kz-v2 .radar-inspect-detail {
+  grid-column: 1 / -1;
   margin: 0;
   font-size: 12px;
-  line-height: 1.45;
+  line-height: 1.4;
   color: var(--text-2);
+  max-width: 100%;
 }
 
-@keyframes radar-tip-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -46%) scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
+.kz-v2 .radar-inspect-hint {
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  justify-self: end;
+}
+
+.kz-v2 .radar-inspect-clear {
+  justify-self: end;
+  align-self: start;
+  border: 1px solid var(--line-gold);
+  background: rgba(212, 175, 87, 0.08);
+  color: var(--gold-bright);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 4px 8px;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.kz-v2 .radar-inspect-clear:hover {
+  background: rgba(212, 175, 87, 0.16);
 }
 
 .kz-v2 .radar-ring-pulse {
@@ -1121,8 +1152,7 @@
   .kz-v2 .radar-hub-ring,
   .kz-v2 .radar-ring-pulse,
   .kz-v2 .radar-polygon--fill,
-  .kz-v2 .radar-polygon--stroke,
-  .kz-v2 .radar-tip {
+  .kz-v2 .radar-polygon--stroke {
     animation: none;
   }
 
