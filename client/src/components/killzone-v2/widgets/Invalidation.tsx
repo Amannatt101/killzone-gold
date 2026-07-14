@@ -11,48 +11,32 @@ const INVALIDATIONS: InvRow[] = [
   {
     trigger: (
       <>
-        Real yields break <span className="num">above 2.00%</span> and hold for two daily closes
+        Real yields break <b>above 2.00%</b> and hold for two daily closes
       </>
     ),
-    exp: "Would confirm rate regime has overtaken safe-haven demand as the dominant driver. Current narrative collapses.",
+    exp: "Would confirm rate regime has overtaken safe-haven demand as the dominant driver.",
     status: "near",
     statusLbl: "NEAR",
   },
   {
     trigger: (
       <>
-        GPR index falls <span className="num">below 220</span> on a sustained basis
+        USD broad index pushes <b>above 108.50</b>
       </>
     ),
-    exp: "Removes the primary bullish pillar. Without geopolitical bid, positioning is structurally offside.",
+    exp: "Dollar strength would compound yield pressure on gold.",
     status: "armed",
     statusLbl: "ARMED",
   },
   {
     trigger: (
       <>
-        DXY closes <span className="num">above 108.50</span> with confirming rate differential move
+        VIX drops under <b>16</b>
       </>
     ),
-    exp: "Dollar strength would compound the yield pressure. Safe-haven score would likely drop below 35.",
-    status: "armed",
-    statusLbl: "ARMED",
-  },
-  {
-    trigger: <>Weekly central-bank gold flow turns net negative</>,
-    exp: "Removes the structural floor that has cushioned previous drawdowns. Long-horizon bulls lose their anchor.",
-    status: "remote",
-    statusLbl: "REMOTE",
-  },
-  {
-    trigger: (
-      <>
-        VIX spikes <span className="num">above 28</span> while gold fails to rally
-      </>
-    ),
-    exp: "Breakdown of the safe-haven correlation — signals gold has lost its defensive premium entirely.",
-    status: "remote",
-    statusLbl: "REMOTE",
+    exp: "If fear premium fades, safe-haven demand can compress quickly.",
+    status: "near",
+    statusLbl: "NEAR",
   },
 ];
 
@@ -61,21 +45,25 @@ export function Invalidation({
 }: {
   rows?: InvRow[];
 }) {
+  const list = rows?.length ? rows : INVALIDATIONS;
+
   return (
-    <div className="w-card">
-      <div className="w-head">
-        <div className="title">Invalidation Conditions</div>
-        <div className="meta">WHAT WOULD BREAK THIS NARRATIVE</div>
+    <div className="card">
+      <div className="card-head">
+        <span className="card-eyebrow">INVALIDATION CONDITIONS</span>
+        <span className="card-meta">WHAT WOULD BREAK THIS NARRATIVE</span>
       </div>
-      <div className="inv-list">
-        {(rows?.length ? rows : INVALIDATIONS).map((iv, i) => (
-          <div key={i} className="inv-row">
-            <div className="inv-idx">0{i + 1}</div>
-            <div className="inv-body">
-              <div className="inv-trigger">{iv.trigger}</div>
-              <div className="inv-exp">{iv.exp}</div>
+      <div className="b-inv-list">
+        {list.map((iv, i) => (
+          <div key={i} className="b-inv-row">
+            <span className="idx">{String(i + 1).padStart(2, "0")}</span>
+            <div>
+              <div className="cond">{iv.trigger}</div>
+              <div className="delta">{iv.exp}</div>
             </div>
-            <div className={`inv-status ${iv.status}`}>{iv.statusLbl}</div>
+            <span className={`stat ${iv.status === "remote" ? "remote" : iv.status}`}>
+              {iv.statusLbl}
+            </span>
           </div>
         ))}
       </div>

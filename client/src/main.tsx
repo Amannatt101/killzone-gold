@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
 import "./styles/killzone-v2.css";
+import "./styles/killzone-concept-b.css";
 import { supabase, supabaseConfigured } from "./lib/supabase";
 
 async function prepareAuthRedirect(): Promise<void> {
