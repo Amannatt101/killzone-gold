@@ -829,6 +829,14 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     const dailyImpulseScore = percentileRank(dailyReturns, latestDailyReturn);
 
     const currentTs = Date.now();
+    // Intraday/short-horizon ROCs must stay on one continuous series (Yahoo GC=F).
+    // Mixing gold-api.com spot "now" with futures lookbacks invents false bearish ROCs
+    // whenever futures trade at a premium to spot (common in contango).
+    const latestFutures =
+      goldFast.at(-1)?.close ??
+      goldHourly.at(-1)?.close ??
+      goldFutures ??
+      latestGold;
     const closestPriceAtOrBefore = (hoursBack: number): number | null => {
       const target = currentTs - hoursBack * 3600 * 1000;
       for (let i = goldHourly.length - 1; i >= 0; i--) {
@@ -840,8 +848,8 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
 
     const px6h = closestPriceAtOrBefore(6);
     const px24h = closestPriceAtOrBefore(24);
-    const roc6h = px6h ? ((latestGold - px6h) / px6h) * 100 : 0;
-    const roc24h = px24h ? ((latestGold - px24h) / px24h) * 100 : latestDailyReturn;
+    const roc6h = px6h ? ((latestFutures - px6h) / px6h) * 100 : 0;
+    const roc24h = px24h ? ((latestFutures - px24h) / px24h) * 100 : latestDailyReturn;
 
     // Scale 6h/24h moves into a bounded 0-100 score.
     // Positive move => more supportive, negative move => less supportive.
@@ -864,14 +872,16 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     const px4h = closestIntradayAtOrBefore(goldFast, 240) ?? closestPriceAtOrBefore(4);
     const px8h = closestPriceAtOrBefore(8);
 
-    const roc15m = px15m ? ((latestGold - px15m) / px15m) * 100 : 0;
-    const roc1h = px1h ? ((latestGold - px1h) / px1h) * 100 : 0;
-    const roc4h = px4h ? ((latestGold - px4h) / px4h) * 100 : 0;
-    const roc8h = px8h ? ((latestGold - px8h) / px8h) * 100 : 0;
+    const roc15m = px15m ? ((latestFutures - px15m) / px15m) * 100 : 0;
+    const roc1h = px1h ? ((latestFutures - px1h) / px1h) * 100 : 0;
+    const roc4h = px4h ? ((latestFutures - px4h) / px4h) * 100 : 0;
+    const roc8h = px8h ? ((latestFutures - px8h) / px8h) * 100 : 0;
+    // Prefer directional move over pure acceleration so a sharp bounce isn't
+    // cancelled by still-negative longer-window structure mid-rally.
     const accel = roc1h - roc4h;
 
-    const xauImpulseScore = clamp(50 + roc15m * 80 + roc1h * 45, 0, 100);
-    const xauAccelerationScore = clamp(50 + accel * 55 + roc4h * 20, 0, 100);
+    const xauImpulseScore = clamp(50 + roc15m * 90 + roc1h * 55, 0, 100);
+    const xauAccelerationScore = clamp(50 + accel * 35 + roc4h * 35, 0, 100);
     const usdPulseScore = clamp(50 - latestUSDRoc * 45, 0, 100);
     const yieldPulseScore = clamp(50 - latestRYChange * 30, 0, 100);
     const riskPulseScore = clamp(
@@ -882,40 +892,41 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     );
 
     const amplifyIntraday = (s: number) => clamp(50 + (s - 50) * 1.2, 0, 100);
+    // Price action dominates timing bars; daily FRED pulses are context only.
     const intradayFastComponents = [
-      { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.42 },
-      { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.24 },
-      { name: "USD Pulse", score: usdPulseScore, weight: 0.14 },
-      { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.10 },
-      { name: "Risk Pulse", score: riskPulseScore, weight: 0.10 },
+      { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.58 },
+      { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.22 },
+      { name: "USD Pulse", score: usdPulseScore, weight: 0.08 },
+      { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.06 },
+      { name: "Risk Pulse", score: riskPulseScore, weight: 0.06 },
     ].map((c) => ({
       ...c,
       contribution: amplifyIntraday(c.score) * c.weight,
       score: Math.round(amplifyIntraday(c.score) * 10) / 10,
     }));
 
-    const h2ImpulseScore = clamp(50 + roc1h * 55 + roc4h * 25, 0, 100);
-    const h2StructureScore = clamp(50 + (roc1h - roc8h) * 30, 0, 100);
+    const h2ImpulseScore = clamp(50 + roc1h * 60 + roc4h * 30, 0, 100);
+    const h2StructureScore = clamp(50 + (roc1h - roc8h) * 22 + roc1h * 18, 0, 100);
     const intraday2hComponents = [
-      { name: "XAU 2h Impulse", score: h2ImpulseScore, weight: 0.4 },
-      { name: "XAU 2h Structure", score: h2StructureScore, weight: 0.24 },
-      { name: "USD 2h Pulse", score: usdPulseScore, weight: 0.14 },
-      { name: "Yield 2h Pulse", score: yieldPulseScore, weight: 0.12 },
-      { name: "Risk 2h Pulse", score: riskPulseScore, weight: 0.10 },
+      { name: "XAU 2h Impulse", score: h2ImpulseScore, weight: 0.55 },
+      { name: "XAU 2h Structure", score: h2StructureScore, weight: 0.25 },
+      { name: "USD 2h Pulse", score: usdPulseScore, weight: 0.08 },
+      { name: "Yield 2h Pulse", score: yieldPulseScore, weight: 0.06 },
+      { name: "Risk 2h Pulse", score: riskPulseScore, weight: 0.06 },
     ].map((c) => ({
       ...c,
       contribution: amplifyIntraday(c.score) * c.weight,
       score: Math.round(amplifyIntraday(c.score) * 10) / 10,
     }));
 
-    const h4ImpulseScore = clamp(50 + roc4h * 45 + roc8h * 30, 0, 100);
-    const h4StructureScore = clamp(50 + (roc4h - roc24h) * 20, 0, 100);
+    const h4ImpulseScore = clamp(50 + roc4h * 50 + roc8h * 30, 0, 100);
+    const h4StructureScore = clamp(50 + (roc4h - roc24h) * 15 + roc4h * 15, 0, 100);
     const intraday4hComponents = [
-      { name: "XAU 4h Impulse", score: h4ImpulseScore, weight: 0.38 },
-      { name: "XAU 4h Structure", score: h4StructureScore, weight: 0.26 },
-      { name: "USD 4h Pulse", score: usdPulseScore, weight: 0.14 },
-      { name: "Yield 4h Pulse", score: yieldPulseScore, weight: 0.12 },
-      { name: "Risk 4h Pulse", score: riskPulseScore, weight: 0.10 },
+      { name: "XAU 4h Impulse", score: h4ImpulseScore, weight: 0.52 },
+      { name: "XAU 4h Structure", score: h4StructureScore, weight: 0.28 },
+      { name: "USD 4h Pulse", score: usdPulseScore, weight: 0.08 },
+      { name: "Yield 4h Pulse", score: yieldPulseScore, weight: 0.06 },
+      { name: "Risk 4h Pulse", score: riskPulseScore, weight: 0.06 },
     ].map((c) => ({
       ...c,
       contribution: amplifyIntraday(c.score) * c.weight,
