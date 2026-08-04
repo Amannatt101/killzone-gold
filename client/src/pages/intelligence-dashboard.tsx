@@ -4,6 +4,7 @@ import { IntelligenceDashboard } from "@/components/killzone-v2/IntelligenceDash
 import { LogoutButton } from "@/components/auth/LogoutButton";
 import type { MarketNarrativeSlide } from "@/components/killzone-v2/widgets/LiveMarketNarrativeCarousel";
 import type { SignalData } from "@/components/killzone-v2/signal-types";
+import { buildDominanceModels } from "@/components/killzone-v2/dominance-models";
 import { scoreLabel } from "@/components/killzone-v2/score-utils";
 import bakedSignal from "@/data/signal-data.json";
 import { apiRequest } from "@/lib/queryClient";
@@ -265,60 +266,38 @@ export default function IntelligenceDashboardPage() {
       factorSnapshot: c.factorSnapshot,
     }));
 
-    // Fallback intraday transform guarantees visual divergence from macro
-    // when backend intraday payload is temporarily unavailable/stale.
-    const intradayComponents: DominanceComponent[] =
-      intradayFromApi?.length
-        ? intradayFromApi.map((c) => ({
-            name: c.name,
-            score: c.score,
-            weight: c.weight,
-            contribution: c.contribution ?? c.score * c.weight,
-            factorDetail: c.factorDetail,
-            factorSnapshot: c.factorSnapshot,
-          }))
-        : macroComponents.map((c) => {
-            const centered = c.score - 50;
-            const amplified = Math.max(0, Math.min(100, 50 + centered * 1.35));
-            const isFastFactor = /momentum|usd|yield|risk/i.test(c.name);
-            const intradayWeight = isFastFactor ? c.weight * 1.25 : c.weight * 0.8;
-            return {
-              name: `${c.name} (Intraday)`,
-              score: Math.round(amplified * 10) / 10,
-              weight: Math.round(intradayWeight * 1000) / 1000,
-              contribution: (Math.round(amplified * 10) / 10) * (Math.round(intradayWeight * 1000) / 1000),
-              factorDetail: c.factorDetail,
-              factorSnapshot: c.factorSnapshot,
-            };
-          });
+    // If tape windows are missing, reuse macro as-is so bias stays consistent.
+    // Never amplify/rescore macro into fake "intraday" divergence.
+    const cloneMacroAsWindow = (label: string): DominanceComponent[] =>
+      macroComponents.map((c) => ({
+        name: `${c.name} (${label})`,
+        score: c.score,
+        weight: c.weight,
+        contribution: c.contribution ?? c.score * c.weight,
+        factorDetail: c.factorDetail,
+        factorSnapshot: c.factorSnapshot,
+      }));
 
-    const buildFallbackWindow = (label: string, amp: number, fastWeightMul: number) =>
-      macroComponents.map((c) => {
-        const centered = c.score - 50;
-        const amplified = Math.max(0, Math.min(100, 50 + centered * amp));
-        const isFastFactor = /momentum|usd|yield|risk/i.test(c.name);
-        const w = isFastFactor ? c.weight * fastWeightMul : c.weight * 0.85;
-        const weight = Math.round(w * 1000) / 1000;
-        const scoreAdj = Math.round(amplified * 10) / 10;
-        return {
-          name: `${c.name} (${label})`,
-          score: scoreAdj,
-          weight,
-          contribution: scoreAdj * weight,
+    const intradayComponents: DominanceComponent[] = intradayFromApi?.length
+      ? intradayFromApi.map((c) => ({
+          name: c.name,
+          score: c.score,
+          weight: c.weight,
+          contribution: c.contribution ?? c.score * c.weight,
           factorDetail: c.factorDetail,
           factorSnapshot: c.factorSnapshot,
-        };
-      });
+        }))
+      : cloneMacroAsWindow("Intraday");
 
     const intraday2hComponents: DominanceComponent[] =
       scoreApi?.dominanceModes?.intraday2h?.components?.length
         ? scoreApi.dominanceModes.intraday2h.components
-        : buildFallbackWindow("2H", 1.2, 1.2);
+        : cloneMacroAsWindow("2H");
 
     const intraday4hComponents: DominanceComponent[] =
       scoreApi?.dominanceModes?.intraday4h?.components?.length
         ? scoreApi.dominanceModes.intraday4h.components
-        : buildFallbackWindow("4H", 1.1, 1.1);
+        : cloneMacroAsWindow("4H");
 
     return {
       macro: { components: macroComponents },
@@ -398,33 +377,71 @@ export default function IntelligenceDashboardPage() {
 
   const positioning = useMemo(() => {
     const sc = signal.score;
+    const modelsLocal = buildDominanceModels(scoreApi?.compositeScore ?? sc, dominanceModesForUI);
+    const macroBull = modelsLocal.macro.bullPct >= modelsLocal.macro.bearPct;
+    const intraBull = modelsLocal.intraday.bullPct >= modelsLocal.intraday.bearPct;
+    const aligned = macroBull === intraBull;
+
     const title =
       sc >= 65
         ? "Lean long on structure — but size for volatility."
         : sc >= 50
           ? "Stand aside — wait for structure."
           : "Defensive framing — respect the headwinds.";
-    const body =
-      sc >= 65 ? (
+
+    let body: ReactNode;
+    if (sc >= 65) {
+      body = (
         <>
           The score sits above 65 — macro is{" "}
-          <span style={{ color: "var(--bull)" }}>constructive for gold</span>. Define invalidation
-          before adding exposure; geopolitical headlines can gap price.
+          <span style={{ color: "var(--bull)" }}>constructive for gold</span>
+          {aligned
+            ? ", and intraday timing agrees."
+            : ", though short-term timing is still catching up."}{" "}
+          Define invalidation before adding exposure; geopolitical headlines can gap price.
         </>
-      ) : sc >= 50 ? (
-        <>
-          <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
-          Opposing pressure dominates intraday flow. Macro remains constructive, but timing is not
-          confirmed.
-        </>
-      ) : (
+      );
+    } else if (sc >= 50) {
+      if (aligned && macroBull) {
+        body = (
+          <>
+            <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
+            Macro and timing both lean constructive — wait for a cleaner trigger before sizing up.
+          </>
+        );
+      } else if (aligned && !macroBull) {
+        body = (
+          <>
+            <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
+            Macro and timing both lean defensive — favor patience over chasing.
+          </>
+        );
+      } else if (macroBull && !intraBull) {
+        body = (
+          <>
+            <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
+            Opposing pressure dominates intraday flow. Macro remains constructive, but timing is not
+            confirmed.
+          </>
+        );
+      } else {
+        body = (
+          <>
+            <b style={{ color: "var(--text-1)", fontWeight: 500 }}>Neutral does not mean inactive.</b>{" "}
+            Short-term tape is firmer than the macro backdrop — treat bounce strength as unconfirmed.
+          </>
+        );
+      }
+    } else {
+      body = (
         <>
           The score is below 50 — treat rallies as{" "}
           <span style={{ color: "var(--bear)" }}>fragile</span> until yields or the dollar turn.
         </>
       );
+    }
     return { title, body };
-  }, [signal]);
+  }, [signal, scoreApi?.compositeScore, dominanceModesForUI]);
 
   const invalidationRows = useMemo(() => {
     const c = scoreApi?.current;

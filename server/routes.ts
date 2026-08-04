@@ -764,39 +764,20 @@ export async function registerRoutes(
         const components = enrichComponentsWithFactorDetails(componentsRaw, { monthly: current });
         const dominanceModes = {
           macro: { components },
+          // Historical fallback: keep every window on the same macro bias —
+          // do not invent divergent timing from monthly CSV rows.
           intraday: {
-            components: components.map((c) => ({
-              name: c.name,
-              score: c.score,
-              weight: c.weight,
-              contribution: c.contribution,
-              factorDetail: c.factorDetail,
-              factorSnapshot: c.factorSnapshot,
-            })),
+            components,
             window: "15m/1h" as const,
             lastSampleAt: new Date().toISOString(),
           },
           intraday2h: {
-            components: components.map((c) => ({
-              name: c.name,
-              score: c.score,
-              weight: c.weight,
-              contribution: c.contribution,
-              factorDetail: c.factorDetail,
-              factorSnapshot: c.factorSnapshot,
-            })),
+            components,
             window: "2h" as const,
             lastSampleAt: new Date().toISOString(),
           },
           intraday4h: {
-            components: components.map((c) => ({
-              name: c.name,
-              score: c.score,
-              weight: c.weight,
-              contribution: c.contribution,
-              factorDetail: c.factorDetail,
-              factorSnapshot: c.factorSnapshot,
-            })),
+            components,
             window: "4h" as const,
             lastSampleAt: new Date().toISOString(),
           },

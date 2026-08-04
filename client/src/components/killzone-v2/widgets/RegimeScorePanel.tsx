@@ -12,14 +12,15 @@ function regimeTagFromLabel(regimeLabel: string): string {
 export function RegimeScorePanel({
   score,
   regimeLabel,
-  intradayModel,
+  macroModel,
 }: {
   score: number;
   regimeLabel: string;
-  intradayModel: DominanceResult;
+  /** Pressure bar must match the regime score layer (macro), not timing. */
+  macroModel: DominanceResult;
 }) {
-  const bull = intradayModel.bullPct;
-  const bear = intradayModel.bearPct;
+  const bull = macroModel.bullPct;
+  const bear = macroModel.bearPct;
   const posture = scoreLabel(score);
 
   return (

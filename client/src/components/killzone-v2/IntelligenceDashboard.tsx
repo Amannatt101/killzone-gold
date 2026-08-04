@@ -169,7 +169,7 @@ export function IntelligenceDashboard({
               <RegimeScorePanel
                 score={topbar.score}
                 regimeLabel={regimeLabel}
-                intradayModel={models.intraday}
+                macroModel={models.macro}
               />
               <MacroDominancePanel
                 macroModel={models.macro}

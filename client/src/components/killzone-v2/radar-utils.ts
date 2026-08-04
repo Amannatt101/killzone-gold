@@ -90,23 +90,38 @@ export function buildRadarVertices(
   const intra4hNorm = dominanceToNormalized(intraday4h.bullPct);
   const fastNorm = dominanceToNormalized(intraday.bullPct);
 
+  // All component scores are already gold-supportive when >50. Do not invert —
+  // inverted spokes made the radar disagree with macro/timing bars.
   const curveC = findComponent(macroComponents, /10y|2y|curve/i);
-  const vixC = findComponent(macroComponents, /^vix|risk on/i) ?? findComponent(macroComponents, /vix/i);
-  const usdC = findComponent(macroComponents, /usd|dollar/i);
+  const vixC =
+    findComponent(macroComponents, /risk.?off|vix/i) ??
+    findComponent(intradayComponents, /risk/i);
+  const usdC =
+    findComponent(macroComponents, /usd|dollar/i) ??
+    findComponent(intradayComponents, /usd|dollar/i);
   const priceC =
     findComponent(intradayComponents, /xau|price|momentum|impulse/i) ??
     findComponent(intraday4hComponents, /xau|price|momentum|impulse/i);
-  const yieldC = findComponent(macroComponents, /real yield/i);
+  const yieldC =
+    findComponent(macroComponents, /real yield|yield/i) ??
+    findComponent(intradayComponents, /yield/i);
 
   const values: Record<string, number> = {
     macro24h: macroNorm,
     curve: curveC ? componentNorm(curveC) : 0,
-    vix: vixC ? componentNorm(vixC) : current?.vix != null ? (current.vix < 18 ? 0.2 : -0.2) : 0,
-    usd: usdC ? -componentNorm(usdC) : current?.usdBroad != null ? (current.usdBroad > 110 ? -0.3 : 0.1) : 0,
-    intraday4h: -intra4hNorm,
-    fast: -fastNorm,
-    price: priceC ? -componentNorm(priceC) : 0,
-    realyield: yieldC ? -componentNorm(yieldC) : current?.realYield != null ? (current.realYield > 2 ? -0.35 : 0.15) : 0,
+    // Higher VIX = more risk-off support for gold
+    vix: vixC ? componentNorm(vixC) : current?.vix != null ? (current.vix >= 20 ? 0.25 : current.vix < 16 ? -0.2 : 0) : 0,
+    usd: usdC ? componentNorm(usdC) : current?.usdBroad != null ? (current.usdBroad > 110 ? -0.3 : 0.1) : 0,
+    intraday4h: intra4hNorm,
+    fast: fastNorm,
+    price: priceC ? componentNorm(priceC) : 0,
+    realyield: yieldC
+      ? componentNorm(yieldC)
+      : current?.realYield != null
+        ? current.realYield > 2
+          ? -0.35
+          : 0.15
+        : 0,
   };
 
   const components: Record<string, DominanceComponent | undefined> = {

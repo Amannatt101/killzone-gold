@@ -160,32 +160,35 @@ async function fetchGoldPrice(): Promise<GoldFetchResult> {
     console.warn("[Gold] Yahoo 15m fetch failed:", err);
   }
 
-  // 3. Use spot price from gold-api.com (true XAU/USD), fall back to Yahoo GC=F
-  const currentPrice = spotPrice || yahooSpot || dailyPrices.at(-1)?.close || 0;
-  const source = spotPrice ? spotSource : (yahooSpot ? "Yahoo GC=F" : "historical");
+  // 3. Spot for display/basis; tape close for continuous daily series (GC=F only).
+  // Never write spot into dailyPrices — that pollutes momentum vs futures history.
+  const tapeClose =
+    yahooSpot || fifteenMinPrices.at(-1)?.close || dailyPrices.at(-1)?.close || 0;
+  const displaySpot = spotPrice || tapeClose;
+  const source = spotPrice ? spotSource : yahooSpot ? "Yahoo GC=F" : "historical";
 
-  // 4. Update/append today's price
-  if (currentPrice > 0) {
+  // 4. Update/append today's GC=F tape close
+  if (tapeClose > 0) {
     const today = new Date().toISOString().split("T")[0];
     const lastEntry = dailyPrices.at(-1);
     if (lastEntry && lastEntry.date === today) {
-      lastEntry.close = currentPrice;
+      lastEntry.close = tapeClose;
     } else {
-      dailyPrices.push({ date: today, close: currentPrice });
+      dailyPrices.push({ date: today, close: tapeClose });
     }
   }
 
-  const basis = (yahooSpot && spotPrice) ? yahooSpot - spotPrice : 0;
+  const basis = yahooSpot && spotPrice ? yahooSpot - spotPrice : 0;
   console.log(
-    `[Gold] XAU/USD: $${currentPrice.toFixed(2)} via ${source}${yahooSpot ? ` (GC=F: $${yahooSpot.toFixed(2)}, basis: $${basis.toFixed(2)})` : ""} | ${dailyPrices.length} daily points`
+    `[Gold] XAU/USD: $${displaySpot.toFixed(2)} via ${source}${yahooSpot ? ` (GC=F: $${yahooSpot.toFixed(2)}, basis: $${basis.toFixed(2)})` : ""} | ${dailyPrices.length} daily points`
   );
 
   return {
     dailyPrices,
     hourlyPrices,
     fifteenMinPrices,
-    spotPrice: spotPrice || currentPrice,
-    futuresPrice: yahooSpot || currentPrice,
+    spotPrice: displaySpot,
+    futuresPrice: yahooSpot || tapeClose,
     spotSource: spotPrice ? spotSource : "Yahoo GC=F",
   };
 }
