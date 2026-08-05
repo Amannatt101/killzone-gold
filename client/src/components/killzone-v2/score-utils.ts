@@ -89,9 +89,8 @@ function clamp(n: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, n));
 }
 
-function componentSignedWeight(score: number, baseWeight: number): number {
+function componentSignedWeight(score: number, baseWeight: number, deadZone = 0.06): number {
   const neutralCentered = (score - 50) / 50; // -1 .. +1
-  const deadZone = 0.06; // neutral buffer to reduce flapping
   const adjusted = Math.abs(neutralCentered) < deadZone ? 0 : neutralCentered;
   const scaled = clamp(adjusted * baseWeight, -baseWeight, baseWeight);
   // Clamp extremes per refresh cycle to avoid sharp spikes from one component
@@ -102,12 +101,15 @@ function normalizeComponentName(name: string): string {
   return name.replace(/\s+/g, " ").trim();
 }
 
-export function buildDominanceFromComponents(input: DominanceInput): DominanceResult {
+export function buildDominanceFromComponents(
+  input: DominanceInput & { deadZone?: number },
+): DominanceResult {
+  const deadZone = input.deadZone ?? 0.06;
   const rows = input.components
     ?.filter((c) => Number.isFinite(c?.score) && Number.isFinite(c?.weight))
     .map((c) => {
       const weight = Math.max(0.5, Number(c.weight));
-      const signed = componentSignedWeight(Number(c.score), weight);
+      const signed = componentSignedWeight(Number(c.score), weight, deadZone);
       return {
         name: normalizeComponentName(c.name),
         signed,

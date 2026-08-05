@@ -883,8 +883,9 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
     // cancelled by still-negative longer-window structure mid-rally.
     const accel = roc1h - roc4h;
 
-    const xauImpulseScore = clamp(50 + roc15m * 90 + roc1h * 55, 0, 100);
-    const xauAccelerationScore = clamp(50 + accel * 35 + roc4h * 35, 0, 100);
+    // Softer coeffs than raw tape — 15m alone shouldn't whip the bar red/green.
+    const xauImpulseScore = clamp(50 + roc15m * 45 + roc1h * 50, 0, 100);
+    const xauAccelerationScore = clamp(50 + accel * 25 + roc4h * 30, 0, 100);
     const usdPulseScore = clamp(50 - latestUSDRoc * 45, 0, 100);
     const yieldPulseScore = clamp(50 - latestRYChange * 30, 0, 100);
     const riskPulseScore = clamp(
@@ -894,47 +895,87 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       100,
     );
 
-    const amplifyIntraday = (s: number) => clamp(50 + (s - 50) * 1.2, 0, 100);
-    // Price action dominates timing bars; daily FRED pulses are context only.
-    const intradayFastComponents = [
-      { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.58 },
-      { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.22 },
-      { name: "USD Pulse", score: usdPulseScore, weight: 0.08 },
-      { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.06 },
-      { name: "Risk Pulse", score: riskPulseScore, weight: 0.06 },
-    ].map((c) => ({
-      ...c,
-      contribution: amplifyIntraday(c.score) * c.weight,
-      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
-    }));
+    // Compress toward 50 so modest moves stay near neutral instead of 0/100.
+    const amplifyIntraday = (s: number) => clamp(50 + (s - 50) * 0.85, 0, 100);
 
-    const h2ImpulseScore = clamp(50 + roc1h * 60 + roc4h * 30, 0, 100);
-    const h2StructureScore = clamp(50 + (roc1h - roc8h) * 22 + roc1h * 18, 0, 100);
-    const intraday2hComponents = [
-      { name: "XAU 2h Impulse", score: h2ImpulseScore, weight: 0.55 },
-      { name: "XAU 2h Structure", score: h2StructureScore, weight: 0.25 },
-      { name: "USD 2h Pulse", score: usdPulseScore, weight: 0.08 },
-      { name: "Yield 2h Pulse", score: yieldPulseScore, weight: 0.06 },
-      { name: "Risk 2h Pulse", score: riskPulseScore, weight: 0.06 },
-    ].map((c) => ({
-      ...c,
-      contribution: amplifyIntraday(c.score) * c.weight,
-      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
-    }));
+    type IntradayComponent = {
+      name: string;
+      score: number;
+      weight: number;
+      contribution: number;
+    };
 
-    const h4ImpulseScore = clamp(50 + roc4h * 50 + roc8h * 30, 0, 100);
-    const h4StructureScore = clamp(50 + (roc4h - roc24h) * 15 + roc4h * 15, 0, 100);
-    const intraday4hComponents = [
-      { name: "XAU 4h Impulse", score: h4ImpulseScore, weight: 0.52 },
-      { name: "XAU 4h Structure", score: h4StructureScore, weight: 0.28 },
-      { name: "USD 4h Pulse", score: usdPulseScore, weight: 0.08 },
-      { name: "Yield 4h Pulse", score: yieldPulseScore, weight: 0.06 },
-      { name: "Risk 4h Pulse", score: riskPulseScore, weight: 0.06 },
-    ].map((c) => ({
-      ...c,
-      contribution: amplifyIntraday(c.score) * c.weight,
-      score: Math.round(amplifyIntraday(c.score) * 10) / 10,
-    }));
+    const finalizeIntraday = (
+      rows: { name: string; score: number; weight: number }[],
+    ): IntradayComponent[] =>
+      rows.map((c) => {
+        const score = Math.round(amplifyIntraday(c.score) * 10) / 10;
+        return {
+          ...c,
+          score,
+          contribution: score * c.weight,
+        };
+      });
+
+    /** Blend with prior cache so bars need sustained pressure to flip colour. */
+    const smoothIntraday = (
+      next: IntradayComponent[],
+      prev: IntradayComponent[] | undefined,
+      alpha = 0.38,
+    ): IntradayComponent[] => {
+      if (!prev?.length) return next;
+      const prevByName = new Map(prev.map((c) => [c.name, c.score]));
+      return next.map((c) => {
+        const old = prevByName.get(c.name);
+        if (old == null || !Number.isFinite(old)) return c;
+        const blended = old * (1 - alpha) + c.score * alpha;
+        const score = Math.round(blended * 10) / 10;
+        return { ...c, score, contribution: score * c.weight };
+      });
+    };
+
+    const prevIntra = cachedLiveScore?.intradayDominance;
+
+    // Price still dominates, but 1h/structure outweigh noisy 15m ticks.
+    const intradayFastComponents = smoothIntraday(
+      finalizeIntraday([
+        { name: "XAU 15m/1h Impulse", score: xauImpulseScore, weight: 0.48 },
+        { name: "XAU Acceleration (1h vs 4h)", score: xauAccelerationScore, weight: 0.30 },
+        { name: "USD Pulse", score: usdPulseScore, weight: 0.09 },
+        { name: "Real Yield Pulse", score: yieldPulseScore, weight: 0.07 },
+        { name: "Risk Pulse", score: riskPulseScore, weight: 0.06 },
+      ]),
+      prevIntra?.fast.components,
+      0.35,
+    );
+
+    const h2ImpulseScore = clamp(50 + roc1h * 45 + roc4h * 35, 0, 100);
+    const h2StructureScore = clamp(50 + (roc1h - roc8h) * 18 + roc1h * 16, 0, 100);
+    const intraday2hComponents = smoothIntraday(
+      finalizeIntraday([
+        { name: "XAU 2h Impulse", score: h2ImpulseScore, weight: 0.50 },
+        { name: "XAU 2h Structure", score: h2StructureScore, weight: 0.28 },
+        { name: "USD 2h Pulse", score: usdPulseScore, weight: 0.09 },
+        { name: "Yield 2h Pulse", score: yieldPulseScore, weight: 0.07 },
+        { name: "Risk 2h Pulse", score: riskPulseScore, weight: 0.06 },
+      ]),
+      prevIntra?.h2.components,
+      0.32,
+    );
+
+    const h4ImpulseScore = clamp(50 + roc4h * 40 + roc8h * 28, 0, 100);
+    const h4StructureScore = clamp(50 + (roc4h - roc24h) * 12 + roc4h * 14, 0, 100);
+    const intraday4hComponents = smoothIntraday(
+      finalizeIntraday([
+        { name: "XAU 4h Impulse", score: h4ImpulseScore, weight: 0.48 },
+        { name: "XAU 4h Structure", score: h4StructureScore, weight: 0.30 },
+        { name: "USD 4h Pulse", score: usdPulseScore, weight: 0.09 },
+        { name: "Yield 4h Pulse", score: yieldPulseScore, weight: 0.07 },
+        { name: "Risk 4h Pulse", score: riskPulseScore, weight: 0.06 },
+      ]),
+      prevIntra?.h4.components,
+      0.28,
+    );
 
     // Composite Score (tuned: slightly higher weight on momentum responsiveness)
     const goldSafeHavenScore =

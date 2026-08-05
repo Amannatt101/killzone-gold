@@ -42,6 +42,8 @@ export function buildDominanceModels(
   score: number | undefined,
   modes?: DominanceModesInput,
 ): DominanceModels {
+  // Wider dead zone on timing windows so near-50 noise doesn't flip red/green.
+  const timingDeadZone = 0.12;
   return {
     macro: buildDominanceFromComponents({
       score,
@@ -50,14 +52,17 @@ export function buildDominanceModels(
     intraday: buildDominanceFromComponents({
       score,
       components: modes?.intraday?.components,
+      deadZone: timingDeadZone,
     }),
     intraday2h: buildDominanceFromComponents({
       score,
       components: modes?.intraday2h?.components,
+      deadZone: timingDeadZone,
     }),
     intraday4h: buildDominanceFromComponents({
       score,
       components: modes?.intraday4h?.components,
+      deadZone: timingDeadZone,
     }),
   };
 }

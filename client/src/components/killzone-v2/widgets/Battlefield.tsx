@@ -241,6 +241,7 @@ export function Battlefield({
     return `${body} ${lean}`;
   }
 
+  const timingDeadZone = 0.12;
   const macroModel = buildDominanceFromComponents({
     score,
     components: dominanceModes?.macro?.components,
@@ -248,14 +249,17 @@ export function Battlefield({
   const intradayModel = buildDominanceFromComponents({
     score,
     components: dominanceModes?.intraday?.components,
+    deadZone: timingDeadZone,
   });
   const intraday2hModel = buildDominanceFromComponents({
     score,
     components: dominanceModes?.intraday2h?.components,
+    deadZone: timingDeadZone,
   });
   const intraday4hModel = buildDominanceFromComponents({
     score,
     components: dominanceModes?.intraday4h?.components,
+    deadZone: timingDeadZone,
   });
   // Main card often shows intraday bars only; trend forces should follow macro, not 15m/1h tape.
   const intradayOnlyCard = !showMacroBar && showIntradayBars && showForces;
