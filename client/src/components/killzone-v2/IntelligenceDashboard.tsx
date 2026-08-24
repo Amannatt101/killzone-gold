@@ -87,12 +87,35 @@ export function IntelligenceDashboard({
     [topbar.score, dominanceModes],
   );
 
+  const newsHeadline = useMemo(() => {
+    const slides = narrativeSlides ?? [];
+    const goldSlide = slides.find((s) => s.id === "gold") ?? slides[0];
+    const h = goldSlide?.headlines?.[0];
+    if (h?.title) {
+      return {
+        title: h.title,
+        source: h.source,
+        age: h.age,
+        url: h.url,
+      };
+    }
+    // Fallback: slide title if it looks like a news-style headline
+    if (goldSlide?.title && !/^BREAKING: Gold flow/i.test(goldSlide.title)) {
+      const cleaned = goldSlide.title.replace(/^(BREAKING|YIELDS WATCH|DOLLAR TRACKER|MACRO ALERT):\s*/i, "");
+      if (cleaned.length > 18) {
+        return { title: cleaned, source: "Market feed", age: goldSlide.freshness?.news };
+      }
+    }
+    return null;
+  }, [narrativeSlides]);
+
   const brief = useMemo(
     () =>
       buildGoldDecisionBrief(signal, models, regimeLabel, positioning.title, {
         scoreLastChangedIso,
         narrativeChanged,
         scoreDelta,
+        newsHeadline,
       }),
     [
       signal,
@@ -102,6 +125,7 @@ export function IntelligenceDashboard({
       scoreLastChangedIso,
       narrativeChanged,
       scoreDelta,
+      newsHeadline,
     ],
   );
 

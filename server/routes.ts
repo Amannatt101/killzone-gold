@@ -356,7 +356,7 @@ async function fetchMarketNews(): Promise<NewsHeadline[]> {
   // No-key live fallback feed (Google News RSS)
   try {
     const rssUrl =
-      "https://news.google.com/rss/search?q=gold%20OR%20inflation%20OR%20federal%20reserve%20OR%20interest%20rates%20OR%20geopolitics&hl=en-US&gl=US&ceid=US:en";
+      "https://news.google.com/rss/search?q=gold%20price%20OR%20XAUUSD%20OR%20%22gold%20rises%22%20OR%20%22gold%20falls%22%20OR%20bullion&hl=en-US&gl=US&ceid=US:en";
     const resp = await fetch(rssUrl, {
       headers: { "User-Agent": "Gold-Intel/1.0" },
     });
