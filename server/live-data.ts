@@ -997,7 +997,8 @@ export async function fetchAndComputeLiveScore(): Promise<LiveScoreData> {
       hySpread: latestHY,
       usdBroad: latestUSD,
       gpr: latestGPR,
-      goldClose: latestGold,
+      // Display / signal price = XAU spot. Tape ROCs already use GC=F via latestFutures.
+      goldClose: Math.round((goldSpot || latestGold) * 100) / 100,
       basisData,
       ryScore: Math.round(ryScore * 10) / 10,
       usdScore: Math.round(usdScore * 10) / 10,

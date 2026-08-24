@@ -1251,8 +1251,11 @@ export async function registerRoutes(
       if (!live) live = await fetchAndComputeLiveScore();
 
       const score = live.goldSafeHavenScore;
-      const gold = live.goldClose;
       const basis = live.basisData;
+      // Prefer live XAU spot for the headline price (what traders see as XAU/USD).
+      // Futures stay available on basis for contango context.
+      const gold =
+        basis.spot > 0 ? basis.spot : live.goldClose > 0 ? live.goldClose : basis.futures;
 
       // --- Directional Bias ---
       type Bias = "BULLISH" | "BEARISH" | "NEUTRAL";

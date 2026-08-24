@@ -15,13 +15,6 @@ function activeSessionName(nowHour: number): string {
   return "Off-hours";
 }
 
-function nextPrimarySession(nowHour: number): string | null {
-  if (nowHour < 7) return "London";
-  if (nowHour >= 7 && nowHour < 13) return "London";
-  if (nowHour >= 13 && nowHour < 21) return "New York";
-  return "Asia";
-}
-
 export type GoldDecisionBrief = {
   headline: string;
   body: string;
@@ -42,23 +35,50 @@ export function buildGoldDecisionBrief(
   const now = new Date();
   const nowHour = now.getUTCHours() + now.getUTCMinutes() / 60;
   const active = activeSessionName(nowHour);
-  const primary = nextPrimarySession(nowHour);
   const split = splitRegimeFlag(models.macro, models.intraday4h);
   const interpretation = dominanceInterpretation(models.macro, models.intraday4h);
 
+  const macroBull = models.macro.bullPct;
+  const macroBear = models.macro.bearPct;
+  const intraBull = models.intraday.bullPct;
+  const intraBear = models.intraday.bearPct;
+  const macroEdge = Math.abs(models.macro.edge);
+  const intraEdge = Math.abs(models.intraday.edge);
+
+  // Headline follows live models — never pin to a static "wait for London" line.
   let headline = positioningTitle.replace(/\.$/, "");
-  if (signal.score >= 50 && signal.score < 65 && primary === "London" && active !== "London") {
-    headline = `Neutral — wait for ${primary} confirmation.`;
-  } else if (signal.bias === "NEUTRAL") {
-    headline = `Neutral — ${active === "London" ? "no clean execution signal yet" : `wait for ${primary} confirmation`}.`;
+  if (split) {
+    headline = "Split regime — stand aside until macro and timing agree";
+  } else if (signal.score >= 65 || (macroBull >= 60 && models.macro.leaning === "bull")) {
+    headline =
+      intraBull >= intraBear
+        ? "Constructive — macro and timing support longs"
+        : "Constructive macro — wait for timing to confirm";
+  } else if (signal.score <= 35 || (macroBear >= 60 && models.macro.leaning === "bear")) {
+    headline =
+      intraBear >= intraBull
+        ? "Defensive — macro and timing both lean against gold"
+        : "Defensive macro — rallies need confirmation";
+  } else if (macroEdge < 8 && intraEdge < 8) {
+    headline = `Balanced — no clean edge in ${active}`;
+  } else if (models.macro.leaning === "bull") {
+    headline = "Mildly constructive — selective longs only";
+  } else if (models.macro.leaning === "bear") {
+    headline = "Mildly defensive — respect the headwinds";
+  } else {
+    headline = `Mixed — ${active} session, wait for clearer structure`;
   }
 
-  const intraBear = models.intraday.bearPct > models.intraday.bullPct;
-  const macroBull = models.macro.bullPct > models.macro.bearPct;
   const parts: string[] = [];
 
-  if (intraBear && macroBull) {
-    parts.push("Opposing pressure dominates intraday flow. Macro remains constructive, but timing is not confirmed.");
+  if (intraBear > intraBull && macroBull > macroBear) {
+    parts.push(
+      "Opposing pressure dominates intraday flow. Macro remains constructive, but timing is not confirmed.",
+    );
+  } else if (intraBull > intraBear && macroBear > macroBull) {
+    parts.push(
+      "Short-term tape is firmer than the macro backdrop — treat bounce strength as unconfirmed.",
+    );
   } else if (split) {
     parts.push("Macro and intraday layers disagree — stand aside until structure aligns.");
   } else {
@@ -72,7 +92,7 @@ export function buildGoldDecisionBrief(
     parts.push(signal.continuation);
   }
 
-  if (signal.score >= 45 && signal.score < 65) {
+  if (signal.score >= 45 && signal.score < 65 && macroEdge < 12 && intraEdge < 12) {
     parts.push("No clean execution signal yet.");
   }
 
@@ -94,6 +114,9 @@ export function buildGoldDecisionBrief(
       /* ignore */
     }
   }
+
+  // regimeLabel reserved for callers; keep signature stable
+  void regimeLabel;
 
   return { headline, body, whatChanged };
 }

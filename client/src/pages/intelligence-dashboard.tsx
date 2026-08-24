@@ -78,7 +78,17 @@ type ScoreApi = {
     vix?: number;
     usdBroad?: number;
     gpr?: number;
+    goldClose?: number;
     goldSafeHavenScore?: number;
+  };
+  basisData?: {
+    spot?: number;
+    futures?: number;
+    basis?: number;
+    basisPct?: number;
+    contangoWarning?: boolean;
+    spotSource?: string;
+    futuresSource?: string;
   };
   sources?: {
     fred?: boolean;
@@ -250,7 +260,38 @@ export default function IntelligenceDashboardPage() {
     retry: false,
   });
 
-  const signal: SignalData = (liveSignal ?? (bakedSignal as SignalData)) as SignalData;
+  const rawSignal: SignalData = (liveSignal ?? (bakedSignal as SignalData)) as SignalData;
+
+  const signal: SignalData = useMemo(() => {
+    const spot = scoreApi?.basisData?.spot;
+    const score = scoreApi?.compositeScore ?? rawSignal.score;
+    const bias: SignalData["bias"] =
+      score >= 65 ? "BULLISH" : score <= 35 ? "BEARISH" : "NEUTRAL";
+    const gold =
+      typeof spot === "number" && spot > 0
+        ? spot
+        : typeof scoreApi?.current?.goldClose === "number" && scoreApi.current.goldClose > 0
+          ? scoreApi.current.goldClose
+          : rawSignal.gold;
+    return {
+      ...rawSignal,
+      gold,
+      score,
+      bias,
+      basis: {
+        ...rawSignal.basis,
+        spot: typeof spot === "number" && spot > 0 ? spot : rawSignal.basis?.spot,
+        futures:
+          typeof scoreApi?.basisData?.futures === "number" && scoreApi.basisData.futures > 0
+            ? scoreApi.basisData.futures
+            : rawSignal.basis?.futures,
+      },
+      meta: {
+        ...rawSignal.meta,
+        lastFetched: scoreApi?.lastFetched ?? rawSignal.meta.lastFetched,
+      },
+    };
+  }, [rawSignal, scoreApi]);
 
   const dominanceModesForUI = useMemo(() => {
     const macroFromApi = scoreApi?.dominanceModes?.macro?.components;
@@ -376,8 +417,8 @@ export default function IntelligenceDashboardPage() {
   }, [narrativeApi?.slides, signal, scoreApi]);
 
   const positioning = useMemo(() => {
-    const sc = signal.score;
-    const modelsLocal = buildDominanceModels(scoreApi?.compositeScore ?? sc, dominanceModesForUI);
+    const sc = scoreApi?.compositeScore ?? signal.score;
+    const modelsLocal = buildDominanceModels(sc, dominanceModesForUI);
     const macroBull = modelsLocal.macro.bullPct >= modelsLocal.macro.bearPct;
     const intraBull = modelsLocal.intraday.bullPct >= modelsLocal.intraday.bearPct;
     const aligned = macroBull === intraBull;
@@ -441,7 +482,7 @@ export default function IntelligenceDashboardPage() {
       );
     }
     return { title, body };
-  }, [signal, scoreApi?.compositeScore, dominanceModesForUI]);
+  }, [signal.score, scoreApi?.compositeScore, dominanceModesForUI]);
 
   const invalidationRows = useMemo(() => {
     const c = scoreApi?.current;
@@ -515,9 +556,26 @@ export default function IntelligenceDashboardPage() {
     return out;
   }, [scoreLogApi]);
 
+  const liveGoldPrice = useMemo(() => {
+    const spot = scoreApi?.basisData?.spot ?? signal.basis?.spot;
+    const close = scoreApi?.current?.goldClose;
+    const signalGold = signal.gold;
+    // Prefer live XAU spot — futures can sit $50–70 above and look wrong vs trader charts.
+    if (typeof spot === "number" && spot > 0) return spot;
+    if (typeof close === "number" && close > 0) return close;
+    if (typeof signalGold === "number" && signalGold > 0) return signalGold;
+    return null;
+  }, [scoreApi, signal.basis?.spot, signal.gold]);
+
+  const liveScore = scoreApi?.compositeScore ?? signal.score;
+  const liveBias =
+    liveScore >= 65 ? "BULLISH" : liveScore <= 35 ? "BEARISH" : "NEUTRAL";
+
   const topbar = useMemo(() => {
-    const priceDisplay = `$${safeFixed(signal.gold)}`;
-    const liveLine = `LIVE · ${formatGmtPlus1Time(signal.meta.lastFetched, {
+    const priceDisplay =
+      liveGoldPrice != null ? `$${safeFixed(liveGoldPrice)}` : `$${safeFixed(signal.gold)}`;
+    const fetchedAt = scoreApi?.lastFetched ?? signal.meta.lastFetched;
+    const liveLine = `LIVE · ${formatGmtPlus1Time(fetchedAt, {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
@@ -527,7 +585,10 @@ export default function IntelligenceDashboardPage() {
     let chgClass: "bull" | "bear" = "bear";
     if (entries && entries.length >= 2) {
       const prev = entries[entries.length - 2].goldClose;
-      const cur = entries[entries.length - 1].goldClose;
+      const cur =
+        liveGoldPrice != null && liveGoldPrice > 0
+          ? liveGoldPrice
+          : entries[entries.length - 1].goldClose;
       if (prev > 0) {
         const pct = ((cur - prev) / prev) * 100;
         chgDisplay = `${pct >= 0 ? "+" : ""}${pct.toFixed(2)}%`;
@@ -538,13 +599,22 @@ export default function IntelligenceDashboardPage() {
       priceDisplay,
       chgClass,
       chgDisplay,
-      score: signal.score,
-      scoreTag: `${signal.bias} · ${scoreLabel(signal.score)}`,
+      score: liveScore,
+      scoreTag: `${liveBias} · ${scoreLabel(liveScore)}`,
       liveLine,
       regimeChip: regimeChipFromString(regimeLabel),
-      biasChip: signal.bias,
+      biasChip: liveBias,
     };
-  }, [signal, regimeLabel, scoreLogApi]);
+  }, [
+    signal.gold,
+    signal.meta.lastFetched,
+    scoreApi?.lastFetched,
+    liveGoldPrice,
+    liveScore,
+    liveBias,
+    regimeLabel,
+    scoreLogApi,
+  ]);
 
   const scoreLastChangedIso = useMemo(() => {
     const entries = scoreLogApi?.entries;
